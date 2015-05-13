@@ -221,25 +221,136 @@ void loop() {
 		float q_y = raw_q_y / 16384.0f;
 		float q_z = raw_q_z / 16384.0f;
 
+#ifdef OUTPUT_RAW_ACCEL
+		// print accelerometer values from fifoBuffer
+		int AcceX = ((fifoBuffer[28] << 8) + fifoBuffer[29]);
+		int AcceY = ((fifoBuffer[32] << 8) + fifoBuffer[33]);
+		int AcceZ = ((fifoBuffer[36] << 8) + fifoBuffer[37]);
+		Serial.print("Raw acceleration ax, ay, az [8192 = 1 g]: "); Serial.print("\t\t");
+		Serial.print  (AcceX); Serial.print("\t");
+		Serial.print  (AcceY); Serial.print("\t");
+		Serial.println(AcceZ);
+#endif
+
+#ifdef OUTPUT_RAW_ACCEL_G
+		// same as OUTPUT_RAW_ACCEL but recalculated to g-force values
+		int AcceX = ((fifoBuffer[28] << 8) + fifoBuffer[29]);
+		int AcceY = ((fifoBuffer[32] << 8) + fifoBuffer[33]);
+		int AcceZ = ((fifoBuffer[36] << 8) + fifoBuffer[37]);
+		float Ax = AcceX / 8192.0f; // calculate g-value
+		float Ay = AcceY / 8192.0f; // calculate g-value
+		float Az = AcceZ / 8192.0f; // calculate g-value
+		Serial.print("Raw acceleration ax, ay, az [g]: "); Serial.print("\t\t\t");
+		Serial.print  (Ax, 3); Serial.print("\t");
+		Serial.print  (Ay, 3); Serial.print("\t");
+		Serial.println(Az, 3);
+#endif
+
+#ifdef OUTPUT_RAW_ANGLES
+		// print calculated angles for roll and pitch from the raw acceleration components
+		// (yaw is undetermined here, this needs the use of the quaternion - see further on)
+		int AcceX = ((fifoBuffer[28] << 8) + fifoBuffer[29]);
+		int AcceY = ((fifoBuffer[32] << 8) + fifoBuffer[33]);
+		int AcceZ = ((fifoBuffer[36] << 8) + fifoBuffer[37]);
+		// atan2 outputs the value of -pi to pi (radians) - see http://en.wikipedia.org/wiki/Atan2
+		// We then convert it to 0 to 2 pi and then from radians to degrees - in the end it's 0 - 360 degrees
+		float ADegX = (atan2(AcceY, AcceZ) + PI) * RAD_TO_DEG;
+		float ADegY = (atan2(AcceX, AcceZ) + PI) * RAD_TO_DEG;
+		Serial.print("Calculated angle from raw acceleration - roll, pitch and yaw [degrees]: ");
+		Serial.print(ADegX); Serial.print("\t");
+		Serial.print(ADegY); Serial.print("\t");
+		Serial.println("undetermined");
+#endif
+
+#ifdef OUTPUT_RAW_GYRO
+		// print gyroscope values from fifoBuffer
+		int GyroX = ((fifoBuffer[16] << 8) + fifoBuffer[17]);
+		int GyroY = ((fifoBuffer[20] << 8) + fifoBuffer[21]);
+		int GyroZ = ((fifoBuffer[24] << 8) + fifoBuffer[25]);
+		Serial.print("Raw gyro rotation ax, ay, az [value/deg/s]: "); Serial.print("\t\t");
+		Serial.print(GyroX); Serial.print("\t");
+		Serial.print(GyroY); Serial.print("\t");
+		Serial.println(GyroZ);
+#endif
+
+#ifdef OUTPUT_TEMPERATURE
+		// print calculated temperature from standard registers (not available in fifoBuffer)
+		// the chip temperature may be used for correction of the temperature sensitivity of the
+		// accelerometer and the gyroscope - not done in this sketch
+		byte Temp_Out_H = spi_readReg(ChipSelPin1, 0x41);
+		byte Temp_Out_L = spi_readReg(ChipSelPin1, 0x42);
+		int TemperatureRaw = Temp_Out_H << 8 | Temp_Out_L;
+		float Temperature = (TemperatureRaw / 340.00) + 36.53; // formula from datasheet chapter 4.19
+		Serial.print("Chip temperature for corrections [deg. Celsius]: ");
+		Serial.println(Temperature, 2);
+		delay(1000);
+#endif
+
+#ifdef OUTPUT_READABLE_QUATERNION
 		Serial.print("Quaternion qw, qx, qy, qz [-1 to +1]: "); Serial.print("\t");
 		Serial.print  (q_w); Serial.print("\t");
 		Serial.print  (q_x); Serial.print("\t");
 		Serial.print  (q_y); Serial.print("\t");
 		Serial.println(q_z);
+#endif
+
+#ifdef OUTPUT_READABLE_EULER
+		// calculate Euler angles
+		// http://en.wikipedia.org/wiki/Atan2
+		// http://en.wikipedia.org/wiki/Sine (-> Inverse)
+		float euler_x = atan2((2 * q_y * q_z) - (2 * q_w * q_x), (2 * q_w * q_w) + (2 * q_z * q_z) - 1); // phi
+		float euler_y = -asin((2 * q_x * q_z) + (2 * q_w * q_y));                                        // theta
+		float euler_z = atan2((2 * q_x * q_y) - (2 * q_w * q_z), (2 * q_w * q_w) + (2 * q_x * q_x) - 1); // psi
+		euler_x = euler_x * 180 / M_PI; // angle in degrees -180 to +180
+		euler_y = euler_y * 180 / M_PI; // angle in degrees
+		euler_z = euler_z * 180 / M_PI; // angle in degrees -180 to +180
+		Serial.print("Euler angles x, y, z [degrees]: ");
+		Serial.print(euler_x); Serial.print("\t");
+		Serial.print(euler_y); Serial.print("\t");
+		Serial.print(euler_z); Serial.println();
 		delay(1000);
+#endif
+
+#ifdef OUTPUT_READABLE_ROLLPITCHYAW
+		// display Euler angles in degrees
+
+		// dmpGetGravity
+		float grav_x = 2 * ((q_x * q_z) - (q_w * q_y));
+		float grav_y = 2 * ((q_w * q_x) + (q_y * q_z));
+		float grav_z = (q_w * q_w) - (q_x * q_x) - (q_y * q_y) + (q_z * q_z);
+
+		// roll: (tilt left/right, about X axis)
+		float rpy_rol = atan(grav_y / (sqrt((grav_x * grav_x) + (grav_z * grav_z))));
+		// pitch: (nose up/down, about Y axis)
+		float rpy_pit = atan(grav_x / (sqrt((grav_y * grav_y) + (grav_z * grav_z))));
+		// yaw: (rotate around Z axis)
+		float rpy_yaw = atan2((2 * q_x * q_y) - (2 * q_w * q_z), (2 * q_w * q_w) + (2 * q_x * q_x) - 1);
+
+		Serial.print("Roll, pitch and yaw angles [degrees]: ");
+		Serial.print(rpy_rol * 180 / M_PI); Serial.print("\t");
+		Serial.print(rpy_pit * 180 / M_PI); Serial.print("\t");
+		Serial.print(rpy_yaw * 180 / M_PI); Serial.println();
+#endif
+
+#ifdef OUTPUT_TEAPOT
+		// display quaternion values in InvenSense Teapot demo format:
+		teapotPacket[2] = fifoBuffer[0];
+		teapotPacket[3] = fifoBuffer[1];
+		teapotPacket[4] = fifoBuffer[4];
+		teapotPacket[5] = fifoBuffer[5];
+		teapotPacket[6] = fifoBuffer[8];
+		teapotPacket[7] = fifoBuffer[9];
+		teapotPacket[8] = fifoBuffer[12];
+		teapotPacket[9] = fifoBuffer[13];
+		Serial.write(teapotPacket, 14);
+		teapotPacket[11]++; // packetCount, loops at 0xFF on purpose
+#endif
+
+// ============================================================================================== //
+// >>>>>>>>> - this would normally be the end of adding your own code into this sketch          >>>>
+// >>>>>>>>> - end of using the 42 FIFO bytes from the MPU-6000 to generate output              >>>>
+// >>>>>>>>> - after blinking the red LED, the main loop starts again (and again, and again...) >>>>
+// ============================================================================================== //
+
 	} // End of loop()
 }
-
-
-// void spi_write_o() {
-// 	digitalWrite(slaveSelectPin, LOW);	// take the SS pin low to select the chip:
-// 	SPI.transfer('o');//  send in the value via SPI:
-// 	digitalWrite(slaveSelectPin, HIGH);// take the SS pin high to de-select the chip:
-// }
-
-
-// void spi_write_f() {
-// 	digitalWrite(slaveSelectPin, LOW);	// take the SS pin low to select the chip:
-// 	SPI.transfer('f');//  send in the value via SPI:
-// 	digitalWrite(slaveSelectPin, HIGH);// take the SS pin high to de-select the chip:
-// }

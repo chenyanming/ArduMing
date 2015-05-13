@@ -4,6 +4,8 @@
 #include <SPI.h>
 
 // #define DEBUG
+// #define OUTPUT_TEMPERATURE
+#define OUTPUT_READABLE_EULER
 /**
  * Serial.print definitions for debug output
  */
