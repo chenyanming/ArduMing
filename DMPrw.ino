@@ -216,10 +216,14 @@ const unsigned char dmpUpdates[MPU6050_DMP_UPDATES_SIZE] PROGMEM = {
 boolean dmpReady = false;     // set true if DMP initialization was successful
 unsigned int packetSize = 42; // number of unique bytes of data written by the DMP each time (FIFO can hold multiples of 42-bytes)
 unsigned int fifoCount;       // count of all bytes currently in FIFO
-byte fifoBuffer[64];          // FIFO storage buffer (in fact only 42 used...)
+byte fifoBuffer[64];          // FIFO storage buffer (in fact only 42 used...) // But in datasheet, fifo has 1024bytes and FIFO count may be large...
 
 // packet structure for InvenSense Teapot demo
 byte teapotPacket[14] = { '$', 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0x00, 0x00, '\r', '\n' };
+
+
+
+
 // ############################################################################################## //
 // ################################ DMP functions used in dmpInitialize() ####################### //
 // ############################################################################################## //
@@ -321,18 +325,6 @@ void spi_ClrBits(int ChipSelPin, unsigned char reg, unsigned char mask) {
 // ChipSelPin : MPU-6000 chip select pin number (in this sketch defined by ChipSelPin1)
 // return     > array of data[0 - length]
 void spi_readBytes(int ChipSelPin, byte reg, unsigned int length, byte *data) {
-
-// #ifdef DEBUG
-// 	Serial.print("SPI (/CS");
-// 	Serial.print(ChipSelPin);
-// 	Serial.print(") reading ");
-// 	Serial.print(length, DEC);
-// 	Serial.print(" byte(s) from 0x");
-// 	if (reg < 0x10) {Serial.print("0");} // add leading zero - this is an Arduino bug
-// 	Serial.print(reg, HEX);
-// 	Serial.println("... ");
-// #endif
-
 	digitalWrite(ChipSelPin, LOW);
 	delay(10); // wait 10 ms for MPU-6000 to react on chipselect (if this is 4 ms or less, SPI.transfer fails)
 	SPI.transfer(reg | 0x80); // reg | 0x80 causes a "1" added as MSB to reg to denote reading from reg i.s.o. writing to it
@@ -343,58 +335,12 @@ void spi_readBytes(int ChipSelPin, byte reg, unsigned int length, byte *data) {
 	for (count = 0; count < length; count ++)
 	{
 		data[count] = SPI.transfer(0x00);
-// #ifdef DEBUG
-// 		if (data[count] < 0x10) Serial.print("0"); // add leading zero - this is an Arduino bug
-// 		Serial.print(data[count], HEX); Serial.print(" ");
-// 		data_bytes_printed ++;
-// 		if (data_bytes_printed == 16) // print lines of 16 bytes
-// 		{
-// 			Serial.println();
-// 			data_bytes_printed = 0;
-// 		}
-// #endif
 	}
 
 	digitalWrite(ChipSelPin, HIGH);
 	// DEBUG_PRINTLN(" (done)");
 }
 
-
-
-
-/*
-void setMemoryBank(byte bank, boolean prefetchEnabled, boolean userBank, int ChipSelPin)
-{
-	// - the value in 0x6D activates a specific bank in the DMP
-	// - the value in 0x6E sets the read/write pointer to a specific startaddress within the specified DMP bank
-	// - register 0x6F is the register from which to read or to which to write the data
-	//   (after each r/w autoincrement address within the specified DMP bank starting from startaddress)
-	bank = bank & 0x1F; // 0x1F = 00011111
-	// bank 0: 0 & 0x1F = 00000000 $ 00011111 = 00000000
-	// bank 1: 1 & 0x1F = 00000001 $ 00011111 = 00000001
-	// bank 2: 2 & 0x1F = 00000010 $ 00011111 = 00000010
-	// bank 3: 3 & 0x1F = 00000011 $ 00011111 = 00000011
-	// bank 4: 4 & 0x1F = 00000100 $ 00011111 = 00000100
-	// bank 5: 5 & 0x1F = 00000101 $ 00011111 = 00000101
-	// bank 6: 6 & 0x1F = 00000110 $ 00011111 = 00000110
-	// bank 7: 7 & 0x1F = 00000111 $ 00011111 = 00000111
-	// is this to maximize the number of banks to 00011111 is 0x1F = 31 ?
-	if (userBank) bank |= 0x20;
-	if (prefetchEnabled) bank |= 0x40;
-	SPIwrite(0x6D, bank, ChipSelPin);
-}
-
-/*
-// *********************************************************** //
-void setMemoryStartAddress(byte startaddress, int ChipSelPin)
-{
-	// - the value in 0x6D activates a specific bank in the DMP
-	// - the value in 0x6E sets the read/write pointer to a specific startaddress within the specified DMP bank
-	// - register 0x6F is the register from which to read or to which to write the data
-	//   (after each r/w autoincrement address within the specified DMP bank starting from startaddress)
-	SPIwrite(0x6E, startaddress, ChipSelPin);
-}
-*/
 
 //***********************************************************//
 boolean writeDMPMemory()
@@ -415,10 +361,8 @@ boolean writeDMPMemory()
 	for (i = 0; i < 7; i ++)
 	{
 		DEBUG_PRINT("@@@ write bank "); DEBUG_PRINTLN(i);
-		// setMemoryBank(i, false, false, ChipSelPin1); // bank number  = i
-		spi_writeReg(ChipSelPin1, 0x6D, i);
-		// setMemoryStartAddress(0, ChipSelPin1);       // startaddress = 0 so start writing every DMP bank from the beginning
-		spi_writeReg(ChipSelPin1, 0x6E, 0);
+		spi_writeReg(ChipSelPin1, 0x6D, i); // bank number  = i
+		spi_writeReg(ChipSelPin1, 0x6E, 0);       // startaddress = 0 so start writing every DMP bank from the beginning
 		digitalWrite(ChipSelPin1, LOW);
 		SPI.transfer(0x6F);
 
@@ -426,10 +370,6 @@ boolean writeDMPMemory()
 		{
 			dmp_byte = pgm_read_byte(dmpMemory + (i * 256) + j);
 			SPI.transfer(dmp_byte);
-// #ifdef DEBUG
-			// if (dmp_byte < 0x10) Serial.print("0"); // add leading zero - this is an Arduino bug
-			// Serial.println(dmp_byte, HEX);
-// #endif
 		}
 		digitalWrite(ChipSelPin1, HIGH);
 		// DEBUG_PRINTLN();
@@ -437,10 +377,8 @@ boolean writeDMPMemory()
 
 	// DMP bank 7 gets only 137 bytes:
 	DEBUG_PRINTLN("@@@ write bank 7");
-	// setMemoryBank(7, false, false, ChipSelPin1); // bank number  = 7
-	spi_writeReg(ChipSelPin1, 0x6D, 7);
-	// setMemoryStartAddress(0, ChipSelPin1);       // startaddress = 0 so start writing also this DMP bank from the beginning
-	spi_writeReg(ChipSelPin1, 0x6E, 0);
+	spi_writeReg(ChipSelPin1, 0x6D, 7); // bank number  = 7
+	spi_writeReg(ChipSelPin1, 0x6E, 0);       // startaddress = 0 so start writing also this DMP bank from the beginning
 	digitalWrite(ChipSelPin1, LOW);
 	SPI.transfer(0x6F);
 
@@ -448,16 +386,9 @@ boolean writeDMPMemory()
 	{
 		dmp_byte = pgm_read_byte(dmpMemory + (7 * 256) + j);
 		SPI.transfer(dmp_byte);
-// #ifdef DEBUG
-// 		if (dmp_byte < 0x10) Serial.print("0"); // add leading zero - this is an Arduino bug
-// 		Serial.println(dmp_byte, HEX);
-// #endif
 	}
 	digitalWrite(ChipSelPin1, HIGH);
 	// DEBUG_PRINTLN();
-
-	// Serial.println("done.");
-
 	return true; // end of writeDMPMemory reached
 }
 
@@ -481,10 +412,8 @@ boolean verifyDMPMemory()
 	for (i = 0; i < 7; i ++)
 	{
 		DEBUG_PRINT(">>> read bank "); DEBUG_PRINTLN(i);
-		// setMemoryBank(i, false, false, ChipSelPin1); // bank number  = i
-		spi_writeReg(ChipSelPin1, 0x6D, i);
-		// setMemoryStartAddress(0, ChipSelPin1);       // startaddress = 0 so start reading every DMP bank from the beginning
-		spi_writeReg(ChipSelPin1, 0x6E, 0);
+		spi_writeReg(ChipSelPin1, 0x6D, i); // bank number  = i
+		spi_writeReg(ChipSelPin1, 0x6E, 0); // startaddress = 0 so start reading every DMP bank from the beginning
 		digitalWrite(ChipSelPin1, LOW);
 		SPI.transfer(0x6F | 0x80); // 0x6F | 0x80 causes a "1" added as MSB to 0x6F to denote reading from reg i.s.o. writing to it
 
@@ -498,10 +427,6 @@ boolean verifyDMPMemory()
 				Serial.println(j);
 				verification = false;
 			}
-// #ifdef DEBUG
-// 			if (dmp_byte < 0x10) Serial.print("0"); // add leading zero - this is an Arduino bug
-// 			Serial.println(dmp_byte, HEX);
-// #endif
 		}
 		digitalWrite(ChipSelPin1, HIGH);
 		// DEBUG_PRINTLN();
@@ -509,10 +434,8 @@ boolean verifyDMPMemory()
 
 	// DMP bank 7 only read first 137 bytes:
 	DEBUG_PRINTLN(">>> read bank 7");
-	// setMemoryBank(7, false, false, ChipSelPin1); // bank number  = 7
-	spi_writeReg(ChipSelPin1, 0x6D, 7);
-	// setMemoryStartAddress(0, ChipSelPin1);       // startaddress = 0 so start reading also this DMP bank from the beginning
-	spi_writeReg(ChipSelPin1, 0x6E, 0);
+	spi_writeReg(ChipSelPin1, 0x6D, 7); // bank number  = 7
+	spi_writeReg(ChipSelPin1, 0x6E, 0);       // startaddress = 0 so start reading also this DMP bank from the beginning
 	digitalWrite(ChipSelPin1, LOW);
 	SPI.transfer(0x6F | 0x80); // 0x6F | 0x80 causes a "1" added as MSB to 0x6F to denote reading from reg i.s.o. writing to it
 
@@ -525,10 +448,6 @@ boolean verifyDMPMemory()
 			Serial.println("$$$ dmpMemory: byte verification error 7");
 			verification = false;
 		}
-// #ifdef DEBUG
-// 		if (dmp_byte < 0x10) Serial.print("0"); // add leading zero - this is an Arduino bug
-// 		Serial.println(dmp_byte, HEX);
-// #endif
 	}
 	digitalWrite(ChipSelPin1, HIGH);
 	DEBUG_PRINTLN();
@@ -559,11 +478,9 @@ boolean writeDMPConfig()
 		if (length > 0) // regular block of data to write
 		{
 			DEBUG_PRINT("!! bank  : "); DEBUG_PRINTLNF(bank, HEX);
-			// setMemoryBank(bank, false, false, ChipSelPin1); // bank number  = bank
-			spi_writeReg(ChipSelPin1, 0x6D, bank);
+			spi_writeReg(ChipSelPin1, 0x6D, bank); // bank number  = bank
 			DEBUG_PRINT("!! offset: "); DEBUG_PRINTLNF(offset, HEX);
-			// setMemoryStartAddress(offset, ChipSelPin1);     // startaddress = offset from the beginning (0) of the bank
-			spi_writeReg(ChipSelPin1, 0x6E, offset);
+			spi_writeReg(ChipSelPin1, 0x6E, offset);     // startaddress = offset from the beginning (0) of the bank
 			DEBUG_PRINT("!! length: "); DEBUG_PRINTLNF(length, HEX);
 
 			digitalWrite(ChipSelPin1, LOW);
@@ -593,8 +510,7 @@ boolean writeDMPConfig()
 			if (special == 0x01)
 			{
 				// enable DMP-related interrupts (ZeroMotion, FIFOBufferOverflow, DMP)
-				// SPIwrite(0x38, 0x32, ChipSelPin1);  // write 00110010: ZMOT_EN, FIFO_OFLOW_EN, DMP_INT_EN true
-				spi_writeReg(ChipSelPin1, 0x38, 0x32);
+				spi_writeReg(ChipSelPin1, 0x38, 0x32); // write 00110010: ZMOT_EN, FIFO_OFLOW_EN, DMP_INT_EN true
 				// by the way: this sets all other interrupt enables to false
 				success = true;
 			}
@@ -632,11 +548,9 @@ boolean verifyDMPConfig()
 		if (length > 0) // regular block of data to read
 		{
 			DEBUG_PRINT("!! bank  : "); DEBUG_PRINTLNF(bank, HEX);
-			// setMemoryBank(bank, false, false, ChipSelPin1); // bank number  = bank
-			spi_writeReg(ChipSelPin1, 0x6D, bank);
+			spi_writeReg(ChipSelPin1, 0x6D, bank); // bank number  = bank
 			DEBUG_PRINT("!! offset: "); DEBUG_PRINTLNF(offset, HEX);
-			// setMemoryStartAddress(offset, ChipSelPin1);     // startaddress = offset from the beginning (0) of the bank
-			spi_writeReg(ChipSelPin1, 0x6E, offset);
+			spi_writeReg(ChipSelPin1, 0x6E, offset);     // startaddress = offset from the beginning (0) of the bank
 			DEBUG_PRINT("!! length: "); DEBUG_PRINTLNF(length, HEX);
 
 			digitalWrite(ChipSelPin1, LOW);
@@ -713,11 +627,9 @@ unsigned int writeDMPUpdates(unsigned int pos, byte update_number)
 	length = pgm_read_byte(dmpUpdates + pos++);
 
 	DEBUG_PRINT("!! bank  : "); DEBUG_PRINTLNF(bank, HEX);
-	// setMemoryBank(bank, false, false, ChipSelPin1); // bank number  = bank
-	spi_writeReg(ChipSelPin1, 0x6D, bank);
+	spi_writeReg(ChipSelPin1, 0x6D, bank); // bank number  = bank
 	DEBUG_PRINT("!! offset: "); DEBUG_PRINTLNF(offset, HEX);
-	// setMemoryStartAddress(offset, ChipSelPin1);     // startaddress = offset from the beginning (0) of the bank
-	spi_writeReg(ChipSelPin1, 0x6E, offset);
+	spi_writeReg(ChipSelPin1, 0x6E, offset);     // startaddress = offset from the beginning (0) of the bank
 	DEBUG_PRINT("!! length: "); DEBUG_PRINTLNF(length, HEX);
 
 	digitalWrite(ChipSelPin1, LOW);
@@ -758,11 +670,9 @@ unsigned int verifyDMPUpdates(unsigned int pos_verify, byte update_number)
 	length = pgm_read_byte(dmpUpdates + pos_verify++);
 
 	DEBUG_PRINT("!! bank  : "); DEBUG_PRINTLNF(bank, HEX);
-	// setMemoryBank(bank, false, false, ChipSelPin1); // bank number  = bank
-	spi_writeReg(ChipSelPin1, 0x6D, bank);
+	spi_writeReg(ChipSelPin1, 0x6D, bank); // bank number  = bank
 	DEBUG_PRINT("!! offset: "); DEBUG_PRINTLNF(offset, HEX);
-	// setMemoryStartAddress(offset, ChipSelPin1);     // startaddress = offset from the beginning (0) of the bank
-	spi_writeReg(ChipSelPin1, 0x6E, offset);
+	spi_writeReg(ChipSelPin1, 0x6E, offset);     // startaddress = offset from the beginning (0) of the bank
 	DEBUG_PRINT("!! length: "); DEBUG_PRINTLNF(length, HEX);
 
 	digitalWrite(ChipSelPin1, LOW);
@@ -802,9 +712,7 @@ unsigned int getFIFOCount(int ChipSelPin)
 {
 	// FIFO_COUNT should always be read in high-low order (0x72-0x73) in order to
 	// guarantee that the most current FIFO Count value is read
-	// byte fifo_H = SPIread(0x72, ChipSelPin1);
 	byte fifo_H = spi_readReg(ChipSelPin1, 0x72);
-	// byte fifo_L = SPIread(0x73, ChipSelPin1);
 	byte fifo_L = spi_readReg(ChipSelPin1, 0x73);
 	unsigned int two_bytes = (fifo_H << 8) | fifo_L;
 	return two_bytes;
@@ -914,7 +822,6 @@ unsigned char dmpInitialize()
 
 			DEBUG_PRINTLN(F("Setting clock source to Z Gyro..."));
 			// SPIwriteBits(0x6B, 2, 3, 0x03, ChipSelPin1); // CLKSEL[2:0] = 011 = PLL with Z axis gyroscope reference
-			// spi_writeReg(ChipSelPin1, 0x6B, 0x03);  //PWR_MGMT_1    -- SLEEP 0; CYCLE 0; TEMP_DIS 0; CLKSEL 3 (PLL with Z Gyro reference)
 			spi_SetBits(ChipSelPin1, 0x6B, (1 << 0 | 1 << 1) );
 
 			DEBUG_PRINTLN(F("Setting DMP and FIFO_OFLOW interrupts enabled..."));
@@ -941,46 +848,43 @@ unsigned char dmpInitialize()
 			// bit 6 MOT_INT          0x40
 			// bit 7 FF_INT           0x80 (undocumented)
 
+			// [0x19] SMPLRT_DIV
 			DEBUG_PRINTLN(F("Setting sample rate to 200Hz..."));
 			//setRate(4); // 1kHz / (1 + 4) = 200 Hz (when DLPF_CFG enabled [1 to 6] - true, see below)
-			// SPIwrite(0x19, 4, ChipSelPin1); // SMPLRT_DIV[7:0] = 4 (ok)
 			spi_writeReg(ChipSelPin1, 0x19, 4); // SMPLRT_DIV[7:0] = 4 (ok)
 
-			// FSYNC input not connnected on ArduIMU+ V3
+			// WHY? HOW to use FSYNC?
+			// [0x1A] CONFIG - FSYNC input not connnected on ArduIMU+ V3, but connected on APM, here the FYSNC is not used
 			DEBUG_PRINTLN(F("Disable external frame synchronization..."));
-			// SPIwriteBits(0x1A, 5, 3, 0x00, ChipSelPin1); // EXT_SYNC_SET[2:0] = 000 = input disabled
-			spi_ClrBits(ChipSelPin1, 0x1A, (1 << 3 | 1 << 4 | 1 << 5));
-
+			spi_ClrBits(ChipSelPin1, 0x1A, (1 << 3 | 1 << 4 | 1 << 5)); // EXT_SYNC_SET[2:0] = 000 = input disabled
 			DEBUG_PRINTLN(F("Setting DLPF bandwidth to 42Hz..."));
-			// SPIwriteBits(0x1A, 2, 3, 0x03, ChipSelPin1); // DLPF_CFG[2:0] = 011 = accel 44 Hz gyro 42 Hz
-			spi_SetBits(ChipSelPin1, 0x1A, (1 << 0 | 1 << 1));
+			spi_SetBits(ChipSelPin1, 0x1A, (1 << 0 | 1 << 1)); // DLPF_CFG[2:0] = 011 = accel 44 Hz gyro 42 Hz
+			spi_ClrBits(ChipSelPin1, 0x1A, (1 << 2));
 
+			// [0x1B] GYRO_CONFIG 
 			DEBUG_PRINTLN(F("Setting gyro sensitivity to +/- 2000 deg/sec..."));
-			// SPIwriteBits(0x1B, 4, 2, 0x03, ChipSelPin1); // FS_SEL[1:0] = 11 = +/- 2000 deg/s
-			spi_SetBits(ChipSelPin1, 0x1B, (1 << 3 | 1 << 4));
+			spi_SetBits(ChipSelPin1, 0x1B, (1 << 3 | 1 << 4)); // FS_SEL[1:0] = 11 = +/- 2000 deg/s
 
+			// [0x1C] ACCEL_CONFIG
 			DEBUG_PRINTLN(F("Setting accelerometer full scale range to +/- 2 g..."));
-			// SPIwriteBits(0x1C, 4, 2, 0x00, ChipSelPin1);
-			spi_ClrBits(ChipSelPin1, 0x1C, (1 << 3 | 1 << 4));
+			spi_ClrBits(ChipSelPin1, 0x1C, (1 << 3 | 1 << 4)); // AFS_SEL[1:0] = 00 = +/- 2 g
 
+			// [0x70] DMP_CFG_1 and [0x71] DMP_CFG_2
 			DEBUG_PRINTLN(F("Setting DMP configuration bytes (function unknown)..."));
-			// SPIwrite(0x70, 0x03, ChipSelPin1); // DMP related register
 			spi_writeReg(ChipSelPin1, 0x70, 0x03); // DMP related register
-			// SPIwrite(0x71, 0x00, ChipSelPin1); // DMP related register
 			spi_writeReg(ChipSelPin1, 0x71, 0x00); // DMP related register
 
+			// [0x00] AUX_VDDIO
 			DEBUG_PRINTLN(F("Clearing OTP Bank flag..."));
-			// SPIwriteBit(0x00, 0, false, ChipSelPin1); // [0] OTP_BNK_VLD
-			spi_ClrBits(ChipSelPin1, 0x00, (1 << 0));
+			spi_ClrBits(ChipSelPin1, 0x00, (1 << 0)); // [0] OTP_BNK_VLD
 
+			// WHY? Read out and write back?
 			// enabling this part causes misalignment and drift of x, y and z axis
-			// relative to ArduIMU+ V3/MPU-6000 x, y and z axis
-			/*
-			DEBUG_PRINTLN(F("Setting X/Y/Z gyro offset TCs to previous values..."));
-			SPIwriteBits(0x00, 6, 6, xgOffsetTC, ChipSelPin1);
-			SPIwriteBits(0x01, 6, 6, ygOffsetTC, ChipSelPin1);
-			SPIwriteBits(0x02, 6, 6, zgOffsetTC, ChipSelPin1);
-			*/
+			// relative to APM/MPU-6000 x, y and z axis
+			// DEBUG_PRINTLN(F("Setting X/Y/Z gyro offset TCs to previous values..."));
+			// SPIwriteBits(0x00, 6, 6, xgOffsetTC, ChipSelPin1);
+			// SPIwriteBits(0x01, 6, 6, ygOffsetTC, ChipSelPin1);
+			// SPIwriteBits(0x02, 6, 6, zgOffsetTC, ChipSelPin1);
 
 			/*
 			DEBUG_PRINTLN(F("Setting X/Y/Z gyro user offsets to zero..."));
@@ -1002,12 +906,9 @@ unsigned char dmpInitialize()
 			pos_verify = verifyDMPUpdates(pos_verify, update_number);
 
 			DEBUG_PRINTLN(F("Resetting FIFO..."));
-			//SPIwriteBit(0x6A, 6, false, ChipSelPin1); // FIFO_EN = 0 = disable
-			spi_ClrBits(ChipSelPin1, 0x6A, (1 << 6));
-			// SPIwriteBit(0x6A, 2, true, ChipSelPin1); // FIFO_RESET = 1 = reset (ok) only when FIFO_EN = 0
-			spi_SetBits(ChipSelPin1, 0x6A, (1 << 2));
-			//SPIwriteBit(0x6A, 6, true, ChipSelPin1); // FIFO_EN = 1 = enable
-			spi_SetBits(ChipSelPin1, 0x6A, (1 << 6));
+			spi_ClrBits(ChipSelPin1, 0x6A, (1 << 6)); // FIFO_EN = 0 = disable
+			spi_SetBits(ChipSelPin1, 0x6A, (1 << 2)); // FIFO_RESET = 1 = reset (ok) only when FIFO_EN = 0
+			spi_SetBits(ChipSelPin1, 0x6A, (1 << 6)); // FIFO_EN = 1 = enable
 
 			// Get current FIFO buffer size.
 			// This value indicates the number of bytes stored in the FIFO buffer. This
@@ -1023,39 +924,29 @@ unsigned char dmpInitialize()
 			spi_readBytes(ChipSelPin1, 0x74, fifoCount, fifoBuffer);
 
 			DEBUG_PRINTLN(F("Setting motion detection threshold to 2..."));
-			// SPIwrite(0x1F, 2, ChipSelPin1); // MOT_THR[7:0] = 2
-			spi_writeReg(ChipSelPin1, 0x1F, 2);
+			spi_writeReg(ChipSelPin1, 0x1F, 2);// MOT_THR[7:0] = 2
 
 			DEBUG_PRINTLN(F("Setting zero-motion detection threshold to 156..."));
-			// SPIwrite(0x21, 156, ChipSelPin1); // detection threshold for Zero Motion interrupt generation
-			spi_writeReg(ChipSelPin1, 0x21, 156);
+			spi_writeReg(ChipSelPin1, 0x21, 156); // detection threshold for Zero Motion interrupt generation
 
 			DEBUG_PRINTLN(F("Setting motion detection duration to 80..."));
-			// SPIwrite(0x20, 80, ChipSelPin1); // duration counter threshold for Motion interrupt generation. The duration counter ticks at 1 kHz, therefore MOT_DUR has a unit of 1 LSB = 1 ms
-			spi_writeReg(ChipSelPin1, 0x20, 80);
+			spi_writeReg(ChipSelPin1, 0x20, 80); // duration counter threshold for Motion interrupt generation. The duration counter ticks at 1 kHz, therefore MOT_DUR has a unit of 1 LSB = 1 ms
 
 			DEBUG_PRINTLN(F("Setting zero-motion detection duration to 0..."));
-			// SPIwrite(0x22, 0, ChipSelPin1); // duration counter threshold for Zero Motion interrupt generation. The duration counter ticks at 16 Hz, therefore ZRMOT_DUR has a unit of 1 LSB = 64 ms
-			spi_writeReg(ChipSelPin1, 0x22, 0);
+			spi_writeReg(ChipSelPin1, 0x22, 0);// duration counter threshold for Zero Motion interrupt generation. The duration counter ticks at 16 Hz, therefore ZRMOT_DUR has a unit of 1 LSB = 64 ms
 
 			DEBUG_PRINTLN(F("Resetting FIFO..."));
-			//SPIwriteBit(0x6A, 6, false, ChipSelPin1); // FIFO_EN = 0 = disable
-			spi_ClrBits(ChipSelPin1, 0x6A, (1 << 6));
-			// SPIwriteBit(0x6A, 2, true, ChipSelPin1); // FIFO_RESET = 1 = reset (ok) only when FIFO_EN = 0
-			spi_SetBits(ChipSelPin1, 0x6A, (1 << 2));
+			spi_ClrBits(ChipSelPin1, 0x6A, (1 << 6));// FIFO_EN = 0 = disable
+			spi_SetBits(ChipSelPin1, 0x6A, (1 << 2));// FIFO_RESET = 1 = reset (ok) only when FIFO_EN = 0
 
 			DEBUG_PRINTLN(F("Enabling FIFO..."));
-			// SPIwriteBit(0x6A, 6, true, ChipSelPin1); // FIFO_EN = 1 = enable
-			//SPIwriteBit(0x6A, 6, true, ChipSelPin1); // FIFO_EN = 1 = enable
-			spi_SetBits(ChipSelPin1, 0x6A, (1 << 6));
+			spi_SetBits(ChipSelPin1, 0x6A, (1 << 6));// FIFO_EN = 1 = enable
 
 			DEBUG_PRINTLN(F("Enabling DMP..."));
-			// SPIwriteBit(0x6A, 7, true, ChipSelPin1); // USER_CTRL_DMP_EN
-			spi_SetBits(ChipSelPin1, 0x6A, (1 << 7));
+			spi_SetBits(ChipSelPin1, 0x6A, (1 << 7));// USER_CTRL_DMP_EN
 
 			DEBUG_PRINTLN(F("Resetting DMP..."));
-			// SPIwriteBit(0x6A, 3, true, ChipSelPin1); // Reset DMP
-			spi_SetBits(ChipSelPin1, 0x6A, (1 << 3));
+			spi_SetBits(ChipSelPin1, 0x6A, (1 << 3));// Reset DMP
 
 			DEBUG_PRINTLN(F("Writing final memory update 3/7 (function unknown)..."));
 			update_number ++;
@@ -1083,11 +974,15 @@ unsigned char dmpInitialize()
 			DEBUG_PRINTLN(fifoCount);
 			DEBUG_PRINTLN(F("Reading FIFO data..."));
 			Serial.println("Reading FIFO data 1st time...");
-			spi_readBytes(0x74, fifoCount, fifoBuffer, ChipSelPin1);
+			spi_readBytes(ChipSelPin1, 0x74, fifoCount, fifoBuffer);
+			for(int i=0; i<1024; i++){
+				Serial.print(i);
+				Serial.print("= ");
+				Serial.println(fifoBuffer[i]);
+			}
 			*/
 
 			DEBUG_PRINTLN(F("Reading interrupt status..."));
-			// byte mpuIntStatus = SPIread(0x3A, ChipSelPin1);
 			byte mpuIntStatus = spi_readReg(ChipSelPin1, 0x3A);
 
 			DEBUG_PRINT(F("Current interrupt status = "));
@@ -1116,7 +1011,6 @@ unsigned char dmpInitialize()
 			*/
 
 			DEBUG_PRINTLN(F("Reading interrupt status..."));
-			// mpuIntStatus = SPIread(0x3A, ChipSelPin1);
 			mpuIntStatus = spi_readReg(ChipSelPin1, 0x3A);
 
 			DEBUG_PRINT(F("Current interrupt status="));
@@ -1130,7 +1024,6 @@ unsigned char dmpInitialize()
 			DEBUG_PRINTLN(F("DMP is good to go! Finally."));
 
 			DEBUG_PRINTLN(F("Disabling DMP (you turn it on later)..."));
-			// SPIwriteBit(0x6A, 7, false, ChipSelPin1); // USER_CTRL_DMP_EN
 			spi_ClrBits(ChipSelPin1, 0x6A, (1 << 7)); // USER_CTRL_DMP_EN
 
 			DEBUG_PRINTLN(F("Resetting FIFO and clearing INT status one last time..."));
@@ -1138,8 +1031,7 @@ unsigned char dmpInitialize()
 			// SPIwriteBit(0x6A, 2, true, ChipSelPin1); // FIFO_RESET = 1 = reset (ok) only when FIFO_EN = 0
 			spi_SetBits(ChipSelPin1, 0x6A, (1 << 2));
 			//SPIwriteBit(0x6A, 6, true, ChipSelPin1); // FIFO_EN = 1 = enable
-			// SPIread(0x3A, ChipSelPin1); // reading the register will clear all INT bits
-			spi_readReg(ChipSelPin1, 0x3A);
+			spi_readReg(ChipSelPin1, 0x3A); // reading the register will clear all INT bits
 
 		}
 		else
@@ -1155,11 +1047,9 @@ unsigned char dmpInitialize()
 		return 1; // main binary block loading failed
 	}
 
-	// digitalWrite(BLUE_LED_PIN, LOW); // shows end of write DMP configuration
 	delay(200); // time to see the LED blink
 
-	Serial.println("... Digital Motion Processor (DMP) initializing done.");
-	Serial.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+	Serial.println("Digital Motion Processor (DMP) initializing done.");
 	return 0; // success
 
 

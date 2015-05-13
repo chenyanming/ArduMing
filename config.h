@@ -3,9 +3,10 @@
 
 #include <SPI.h>
 
-// #define DEBUG
+#define DEBUG
 // #define OUTPUT_TEMPERATURE
-#define OUTPUT_READABLE_EULER
+// #define OUTPUT_READABLE_EULER
+// #define OUTPUT_TEAPOT
 /**
  * Serial.print definitions for debug output
  */
@@ -36,9 +37,11 @@ const int ChipSelPin2 = 40;
 
 void spi_writeReg(int ChipSelPin, unsigned char reg, unsigned char data);
 unsigned char spi_readReg(int ChipSelPin, unsigned char reg);
-
 void spi_SetBits(int ChipSelPin, unsigned char reg, unsigned char mask);
 void spi_ClrBits(int ChipSelPin, unsigned char reg, unsigned char mask);
 void spi_readBytes(int ChipSelPin, byte reg, unsigned int length, byte *data);
+
+unsigned int getFIFOCount(int ChipSelPin);
+unsigned char dmpInitialize();
 
 #endif
