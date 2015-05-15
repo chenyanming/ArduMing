@@ -174,7 +174,7 @@ void loop() {
 			//SPIwriteBit(0x6A, 6, true, ChipSelPin1); // FIFO_EN = 1 = enable
 
 			// digitalWrite(BLUE_LED_PIN, HIGH); // shows FIFO overflow without disturbing output with message
-			Serial.println("FIFO overflow! FIFO resetted to continue cleanly.");
+			// Serial.println("FIFO overflow! FIFO resetted to continue cleanly.");
 		}
 
 		// otherwise, check for DMP data ready interrupt (this should happen frequently)
@@ -192,12 +192,12 @@ void loop() {
 			spi_readBytes(ChipSelPin1, 0x74, packetSize, fifoBuffer);
 
 			// verify contents of fifoBuffer before use:
-// # ifdef DEBUG
-// 		for (byte n = 0 ; n < packetSize; n ++)
-// 		{
-// 			Serial.print("\tfifoBuffer["); Serial.print(n); Serial.print("]\t: "); Serial.println(fifoBuffer[n], HEX);
-// 		}
-// # endif
+			// # ifdef DEBUG
+			// 		for (byte n = 0 ; n < packetSize; n ++)
+			// 		{
+			// 			Serial.print("\tfifoBuffer["); Serial.print(n); Serial.print("]\t: "); Serial.println(fifoBuffer[n], HEX);
+			// 		}
+			// # endif
 
 			// track FIFO count here in case there is more than one packet (each of 42 bytes) available
 			// (this lets us immediately read more without waiting for an interrupt)

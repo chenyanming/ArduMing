@@ -5,7 +5,7 @@
 
 #define DEBUG
 // #define OUTPUT_TEMPERATURE
-// #define OUTPUT_READABLE_EULER
+#define OUTPUT_READABLE_EULER
 // #define OUTPUT_TEAPOT
 /**
  * Serial.print definitions for debug output
