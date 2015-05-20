@@ -1,5 +1,6 @@
-#include <SPI.h>
+// #include <SPI.h>
 #include "config.h"
+// #include <MsTimer2.h>
 
 // #define DEBUG_MODE 1
 
@@ -11,6 +12,8 @@ boolean blueled_state = true;
 #define SPI0_MOSI_PIN 51
 #define SPI0_SCK_PIN  52
 
+unsigned int toggle = 0;  //used to keep the state of the LED
+unsigned int count = 0;   //used to keep count of how many interrupts were fired
 
 // INTERRUPT FROM MPU-6000 DETECTION ROUTINE
 volatile boolean mpuInterrupt = false;     // indicates whether MPU interrupt pin has gone high
@@ -21,6 +24,19 @@ void dmpDataReady()
 
 
 
+//Timer2 Overflow Interrupt Vector, called every 1ms
+ISR(TIMER2_OVF_vect) {
+	count++;               //Increments the interrupt counter
+	if (count == 1000) {
+		digitalWrite(27, toggle);
+		toggle = !toggle;    //toggles the LED state
+		count = 0;           //Resets the interrupt counter
+	}
+
+
+	TCNT2 = 130;           //Reset Timer to 130 out of 255, 255-130 = 125 counts = 125*8us = 1ms
+	TIFR2 = 0x00;          //Timer2 INT Flag Reg: Clear Timer Overflow Flag
+};
 
 
 void setup()
@@ -35,6 +51,18 @@ void setup()
 	digitalWrite(blueled, HIGH);
 	digitalWrite(yellowled, HIGH);
 	digitalWrite(redled, HIGH);
+
+
+	/**
+	 * Setup Timer2 to fire every 1ms
+	 */ 
+	TCCR2B = 0x00;        //Disbale Timer2 while we set it up
+	TCNT2  = 130;         //Reset Timer Count to 130 out of 255
+	TIFR2  = 0x00;        //Timer2 INT Flag Reg: Clear Timer Overflow Flag
+	TIMSK2 = 0x01;        //Timer2 INT Reg: Timer2 Overflow Interrupt Enable
+	TCCR2A = 0x00;        //Timer2 Control Reg A: Normal port operation, Wave Gen Mode normal
+	TCCR2B = 0x05;        //Timer2 Control Reg B: Timer Prescaler set to 128, 16MHz/128 = 125KHz = 8us per count
+
 
 	Serial.println("################ Start ################");
 
@@ -146,7 +174,7 @@ void loop() {
 	// {
 	// do nothing until mpuInterrupt = true or fifoCount >= 42
 	// }
-	
+
 	if (mpuInterrupt) {
 
 		// there has just been an interrupt, so reset the interrupt flag, then get INT_STATUS byte
