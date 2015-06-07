@@ -1,4 +1,4 @@
-// #include <SPI.h>
+#include <SPI.h>
 #include "config.h"
 // #include <MsTimer2.h>
 
@@ -19,6 +19,7 @@ unsigned int rc_time_count = 0;	//The RC running time
 unsigned int system_time_count = 0;	//The System running time
 
 boolean euler_output = false;
+boolean rc_output = false;
 
 // INTERRUPT FROM MPU-6000 DETECTION ROUTINE
 volatile boolean mpuInterrupt = false;     // indicates whether MPU interrupt pin has gone high
@@ -26,7 +27,6 @@ void dmpDataReady()
 {
 	mpuInterrupt = true;
 }
-
 
 
 //Timer2 Overflow Interrupt Vector, called every 1ms
@@ -37,18 +37,8 @@ ISR(TIMER2_OVF_vect) {
 	count++;               //Increments the interrupt counter
 	if (count >= 500) {
 
-		euler_output = true;
-
-		Serial.print((float)pitch);
-		Serial.print(' ');
-		Serial.print((float)roll);
-		Serial.print(' ');
-		Serial.print((float)throttle);
-		Serial.print(' ');
-		Serial.print((float)yaw);
-		Serial.println(' ');
-		// Serial.print(ch5);
-		// Serial.print(' ');
+		euler_output = true; // output euler enable
+		rc_output = true; // output remote control enable
 
 		digitalWrite(27, toggle);
 		toggle = !toggle;    //toggles the LED state
@@ -424,6 +414,20 @@ void loop() {
 		// Serial.println(rc_time_count);
 		rc_time_count = 0;
 		rc_get();
+		if (rc_output == true) {
+			rc_output = false;
+			Serial.print("The remote control input pitch, roll, yaw and throttle: ");
+			Serial.print(pitch);
+			Serial.print(' ');
+			Serial.print(roll);
+			Serial.print(' ');
+			Serial.print(yaw);
+			Serial.print(' ');
+			Serial.print(throttle);
+			Serial.println(' ');
+			// Serial.print(ch5);
+			// Serial.print(' ');
+		}
 	}
 
 } // End of loop()

@@ -23,15 +23,16 @@
 #endif
 
 
+const int blueled = 25;
+const int yellowled = 26;
+const int redled = 27;
 
 /**
+ * mpu6050.ino
  * CS - to digital pin 53  (SS pin)
  * SDI - to digital pin 51 (MOSI pin)
  * CLK - to digital pin 52 (SCK pin) *
  */
-const int blueled = 25;
-const int yellowled = 26;
-const int redled = 27;
 const int ChipSelPin1 = 53;
 const int ChipSelPin2 = 40;
 
@@ -43,6 +44,10 @@ void spi_readBytes(int ChipSelPin, byte reg, unsigned int length, byte *data);
 
 unsigned int getFIFOCount(int ChipSelPin);
 unsigned char dmpInitialize();
+extern boolean dmpReady;     // set true if DMP initialization was successful
+extern unsigned int packetSize; // number of unique bytes of data written by the DMP each time (FIFO can hold multiples of 42-bytes)
+extern unsigned int fifoCount;       // count of all bytes currently in FIFO
+extern byte fifoBuffer[64];          // FIFO storage buffer (in fact only 42 used...) // But in datasheet, fifo has 1024bytes and FIFO count may be large...
 
 // Remote Control 
 void rc_setup();

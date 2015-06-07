@@ -81,8 +81,9 @@ void rc_get() {
 #ifdef PPM_SUM_capture
   // Serial.println("") ;
   // Serial.println("Durations are: ") ;
-  roll = map(results[2], 1240, 3060, -90, 90);
-  pitch = map(results[4], 1705, 3250, -180, 180);
+  // Although the range of roll or pitch is form -180 to 180, the drone can not reach large degrees.
+  roll = map(results[2], 1240, 3060, -45, 45);
+  pitch = map(results[4], 1705, 3250, -45, 45);
   throttle = map(results[6], 1645, 3220, 1000, 1800);
   yaw = map(results[8], 1275, 3060, -180, 180);
   // ch5 = map(results[10], 1090, 1911, -180, 180);
