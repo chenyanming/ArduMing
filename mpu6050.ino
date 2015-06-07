@@ -326,7 +326,8 @@ void spi_ClrBits(int ChipSelPin, unsigned char reg, unsigned char mask) {
 // return     > array of data[0 - length]
 void spi_readBytes(int ChipSelPin, byte reg, unsigned int length, byte *data) {
 	digitalWrite(ChipSelPin, LOW);
-	delay(10); // wait 10 ms for MPU-6000 to react on chipselect (if this is 4 ms or less, SPI.transfer fails)
+	//After experiment, no need to delay
+	// delay(10); // wait 10 ms for MPU-6000 to react on chipselect (if this is 4 ms or less, SPI.transfer fails)
 	SPI.transfer(reg | 0x80); // reg | 0x80 causes a "1" added as MSB to reg to denote reading from reg i.s.o. writing to it
 
 	unsigned int count = 0;
