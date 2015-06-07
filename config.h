@@ -44,4 +44,9 @@ void spi_readBytes(int ChipSelPin, byte reg, unsigned int length, byte *data);
 unsigned int getFIFOCount(int ChipSelPin);
 unsigned char dmpInitialize();
 
+// Remote Control 
+void rc_setup();
+void rc_get();
+extern long roll, pitch, throttle, yaw;
+
 #endif
