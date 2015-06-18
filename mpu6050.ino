@@ -1,7 +1,17 @@
+/**
+ * PE6: attachInterrupt(6, dmpDataReady, RISING); // the 0 points correctly to INT6 / PE6
+ */
 #include "config.h"
 #define MPU6050_DMP_CODE_SIZE         1929    // the number of values for writing the dmpMemory[]
 #define MPU6050_DMP_CONFIG_SIZE        192    // the number of values for writing the dmpConfig[]
 #define MPU6050_DMP_UPDATES_SIZE        47    // the number of values for writing the dmpUpdates[]
+
+// INTERRUPT FROM MPU-6000 DETECTION ROUTINE
+volatile boolean mpuInterrupt = false;     // indicates whether MPU interrupt pin has gone high
+void dmpDataReady() {
+	mpuInterrupt = true;
+
+}
 /* ================================================================================================ *\
  | Default MotionApps v2.0 42-byte FIFO packet structure (each value consists of 2 bytes):          |
  | -> this is array fifoBuffer[0-41]                                                                |
@@ -351,7 +361,7 @@ boolean writeDMPMemory()
 	// - register 0x6F is the register from which to read or to which to write the data
 	//   (after each r/w autoincrement address within the specified DMP bank starting from startaddress)
 
-	Serial.print("\tWriting   DMP memory.......... ");
+	// Serial.print("\tWriting   DMP memory.......... ");
 
 	unsigned int i, j;
 	byte dmp_byte;
@@ -401,7 +411,7 @@ boolean verifyDMPMemory()
 	// - register 0x6F is the register from which to read or to which to write the data
 	//   (after each r/w autoincrement address within the specified DMP bank starting from startaddress)
 
-	Serial.print("\tVerifying DMP memory.......... ");
+	// Serial.print("\tVerifying DMP memory.......... ");
 
 	unsigned int i, j;
 	byte dmp_byte, check_byte;
@@ -468,7 +478,7 @@ boolean writeDMPConfig()
 	// [bank] [offset] [length] [byte[0], byte[1], ..., byte[length]]
 	byte bank, offset, length;
 
-	Serial.print("\tWriting   DMP configuration... ");
+	// Serial.print("\tWriting   DMP configuration... ");
 
 	for (i = 0; i < MPU6050_DMP_CONFIG_SIZE;)
 	{
@@ -538,7 +548,7 @@ boolean verifyDMPConfig()
 	byte bank, offset, length;
 	boolean verification = true;
 
-	Serial.print("\tVerifying DMP configuration... ");
+	// Serial.print("\tVerifying DMP configuration... ");
 
 	for (i = 0; i < MPU6050_DMP_CONFIG_SIZE;)
 	{
@@ -603,8 +613,8 @@ boolean verifyDMPConfig()
 		}
 	}
 
-	if (verification == true)  Serial.println("success!");
-	if (verification == false) Serial.println("FAILED!");
+	if (verification == true)  //Serial.println("success!");
+		if (verification == false) Serial.println("FAILED!");
 
 	return verification; // true if DMP correctly written, false if not
 }
@@ -620,7 +630,7 @@ unsigned int writeDMPUpdates(unsigned int pos, byte update_number)
 	// [bank] [offset] [length] [byte[0], byte[1], ..., byte[length]]
 	byte bank, offset, length;
 
-	Serial.print("\tWriting   DMP update "); Serial.print(update_number); Serial.print("/7 ..... ");
+	// Serial.print("\tWriting   DMP update "); Serial.print(update_number); Serial.print("/7 ..... ");
 
 
 	bank   = pgm_read_byte(dmpUpdates + pos++); // pgm_read_byte() is a macro that reads a byte of data stored in a specified address(PROGMEM area)
@@ -647,7 +657,7 @@ unsigned int writeDMPUpdates(unsigned int pos, byte update_number)
 	pos = pos + length;
 	DEBUG_PRINT("!! last position written: "); DEBUG_PRINTLN(pos);
 
-	Serial.println("done.");
+	// Serial.println("done.");
 
 	return pos; // return last used position in dmpUpdates: will be starting point for next call!
 }
@@ -664,7 +674,7 @@ unsigned int verifyDMPUpdates(unsigned int pos_verify, byte update_number)
 	byte bank, offset, length;
 	boolean verification = true;
 
-	Serial.print("\tVerifying DMP update "); Serial.print(update_number); Serial.print("/7 ..... ");
+	// Serial.print("\tVerifying DMP update "); Serial.print(update_number); Serial.print("/7 ..... ");
 
 	bank   = pgm_read_byte(dmpUpdates + pos_verify++); // pgm_read_byte() is a macro that reads a byte of data stored in a specified address(PROGMEM area)
 	offset = pgm_read_byte(dmpUpdates + pos_verify++);
@@ -694,8 +704,8 @@ unsigned int verifyDMPUpdates(unsigned int pos_verify, byte update_number)
 	pos_verify = pos_verify + length;
 	DEBUG_PRINT("!! last position verified: "); DEBUG_PRINTLN(pos_verify);
 
-	if (verification == true)  Serial.println("success!");
-	if (verification == false) Serial.println("FAILED!");
+	if (verification == true)  //Serial.println("success!");
+		if (verification == false) Serial.println("FAILED!");
 	//return verification; // true if DMP correctly written, false if not
 
 	return pos_verify; // return last used position in dmpUpdates: will be starting point for next call!
@@ -862,7 +872,7 @@ unsigned char dmpInitialize()
 			spi_SetBits(ChipSelPin1, 0x1A, (1 << 0 | 1 << 1)); // DLPF_CFG[2:0] = 011 = accel 44 Hz gyro 42 Hz
 			spi_ClrBits(ChipSelPin1, 0x1A, (1 << 2));
 
-			// [0x1B] GYRO_CONFIG 
+			// [0x1B] GYRO_CONFIG
 			DEBUG_PRINTLN(F("Setting gyro sensitivity to +/- 2000 deg/sec..."));
 			spi_SetBits(ChipSelPin1, 0x1B, (1 << 3 | 1 << 4)); // FS_SEL[1:0] = 11 = +/- 2000 deg/s
 
@@ -1050,8 +1060,218 @@ unsigned char dmpInitialize()
 
 	delay(200); // time to see the LED blink
 
-	Serial.println("Digital Motion Processor (DMP) initializing done.");
+	// Serial.println("Digital Motion Processor (DMP) initializing done.");
 	return 0; // success
 
 
+}
+
+unsigned int mpu_get() {
+	if (mpuInterrupt) {
+
+		// there has just been an interrupt, so reset the interrupt flag, then get INT_STATUS byte
+		mpuInterrupt = false;
+		// byte mpuIntStatus = SPIread(0x3A, ChipSelPin1); // by reading INT_STATUS register, all interrupts are cleared
+		byte mpuIntStatus = spi_readReg(ChipSelPin1, 0x3A); // by reading INT_STATUS register, all interrupts are cleared
+
+		// get current FIFO count
+		fifoCount = getFIFOCount(ChipSelPin1);
+		// Serial.print("DMP interrupt! FIFO count = ");
+		// Serial.println(fifoCount);
+
+		// check for FIFO overflow (this should never happen unless our code is too inefficient or DEBUG output delays code too much)
+		// if ((mpuIntStatus & 0x10) || fifoCount == 1008)
+		if ((mpuIntStatus & 0x10) || fifoCount >= 1008) // Change to >= 1008
+			// mpuIntStatus & 0x10 checks register 0x3A for FIFO_OFLOW_INT
+			// the size of the FIFO buffer is 1024 bytes, but max. set to 1008 so after 24 packets of 42 bytes
+			// the FIFO is reset, otherwise the last FIFO reading before reaching 1024 contains only 16 bytes
+			// and can/will produces output value miscalculations
+		{
+			// reset so we can continue cleanly
+			//SPIwriteBit(0x6A, 6, false, ChipSelPin1); // FIFO_EN = 0 = disable
+			// SPIwriteBit(0x6A, 2, true, ChipSelPin1); // FIFO_RESET = 1 = reset (ok) only when FIFO_EN = 0
+			spi_SetBits(ChipSelPin1, 0x6A, (1 << 2));
+			//SPIwriteBit(0x6A, 6, true, ChipSelPin1); // FIFO_EN = 1 = enable
+
+			// digitalWrite(BLUE_LED_PIN, HIGH); // shows FIFO overflow without disturbing output with message
+			// Serial.println("FIFO overflow! FIFO resetted to continue cleanly.");
+		}
+
+		// otherwise, check for DMP data ready interrupt (this should happen frequently)
+		else if (mpuIntStatus & 0x02)
+			// mpuIntStatus & 0x02 checks register 0x3A for (undocumented) DMP_INT
+		{
+
+			// wait for correct available data length, should be a VERY short wait
+			while (fifoCount < packetSize) fifoCount = getFIFOCount(ChipSelPin1);
+
+			// digitalWrite(BLUE_LED_PIN, LOW); // LED off again now that FIFO overflow is resolved
+
+			// read a packet from FIFO
+			// SPIreadBytes(0x74, packetSize, fifoBuffer, ChipSelPin1);
+			spi_readBytes(ChipSelPin1, 0x74, packetSize, fifoBuffer);
+
+			// verify contents of fifoBuffer before use:
+			// # ifdef DEBUG
+			// 		for (byte n = 0 ; n < packetSize; n ++)
+			// 		{
+			// 			Serial.print("\tfifoBuffer["); Serial.print(n); Serial.print("]\t: "); Serial.println(fifoBuffer[n], HEX);
+			// 		}
+			// # endif
+
+			// track FIFO count here in case there is more than one packet (each of 42 bytes) available
+			// (this lets us immediately read more without waiting for an interrupt)
+			fifoCount = fifoCount - packetSize;
+
+
+			// ============================================================================================== //
+			// >>>>>>>>> - from here the 42 FIFO bytes from the MPU-6000 can be used to generate output >>>>>>>>
+			// >>>>>>>>> - this would be the place to add your own code into                            >>>>>>>>
+			// >>>>>>>>> - of course all the normal MPU-6000 registers can be used here too             >>>>>>>>
+			// ============================================================================================== //
+
+			// get the quaternion values from the FIFO - needed for Euler and roll/pitch/yaw angle calculations
+			int raw_q_w = ((fifoBuffer[0] << 8)  + fifoBuffer[1]);  // W
+			int raw_q_x = ((fifoBuffer[4] << 8)  + fifoBuffer[5]);  // X
+			int raw_q_y = ((fifoBuffer[8] << 8)  + fifoBuffer[9]);  // Y
+			int raw_q_z = ((fifoBuffer[12] << 8) + fifoBuffer[13]); // Z
+			float q_w = raw_q_w / 16384.0f;
+			float q_x = raw_q_x / 16384.0f;
+			float q_y = raw_q_y / 16384.0f;
+			float q_z = raw_q_z / 16384.0f;
+
+// #ifdef OUTPUT_RAW_GYRO
+			// print gyroscope values from fifoBuffer
+			GyroX = ((fifoBuffer[16] << 8) + fifoBuffer[17]);
+			GyroY = ((fifoBuffer[20] << 8) + fifoBuffer[21]);
+			GyroZ = ((fifoBuffer[24] << 8) + fifoBuffer[25]);
+// #endif
+
+// #ifdef OUTPUT_READABLE_ROLLPITCHYAW
+			// display Euler angles in degrees
+
+			// dmpGetGravity
+			float grav_x = 2 * ((q_x * q_z) - (q_w * q_y));
+			float grav_y = 2 * ((q_w * q_x) + (q_y * q_z));
+			float grav_z = (q_w * q_w) - (q_x * q_x) - (q_y * q_y) + (q_z * q_z);
+
+			// pitch: (nose up/down, about Y axis)
+			rpy_pit = atan(grav_y / (sqrt((grav_x * grav_x) + (grav_z * grav_z))));
+			// roll: (tilt left/right, about X axis)
+			rpy_rol = atan(grav_x / (sqrt((grav_y * grav_y) + (grav_z * grav_z))));
+			// yaw: (rotate around Z axis)
+			rpy_yaw = atan2((2 * q_x * q_y) - (2 * q_w * q_z), (2 * q_w * q_w) + (2 * q_x * q_x) - 1);
+
+			rpy_pit = - (rpy_pit * 180 / M_PI);
+			rpy_rol = rpy_rol * 180 / M_PI;
+			rpy_yaw = rpy_yaw * 180 / M_PI;
+
+
+// #endif
+
+#if 0
+#ifdef OUTPUT_RAW_ACCEL
+			// print accelerometer values from fifoBuffer
+			int AcceX = ((fifoBuffer[28] << 8) + fifoBuffer[29]);
+			int AcceY = ((fifoBuffer[32] << 8) + fifoBuffer[33]);
+			int AcceZ = ((fifoBuffer[36] << 8) + fifoBuffer[37]);
+			Serial.print("Raw acceleration ax, ay, az [8192 = 1 g]: "); Serial.print("\t\t");
+			Serial.print  (AcceX); Serial.print("\t");
+			Serial.print  (AcceY); Serial.print("\t");
+			Serial.println(AcceZ);
+#endif
+
+#ifdef OUTPUT_RAW_ACCEL_G
+			// same as OUTPUT_RAW_ACCEL but recalculated to g-force values
+			int AcceX = ((fifoBuffer[28] << 8) + fifoBuffer[29]);
+			int AcceY = ((fifoBuffer[32] << 8) + fifoBuffer[33]);
+			int AcceZ = ((fifoBuffer[36] << 8) + fifoBuffer[37]);
+			float Ax = AcceX / 8192.0f; // calculate g-value
+			float Ay = AcceY / 8192.0f; // calculate g-value
+			float Az = AcceZ / 8192.0f; // calculate g-value
+			Serial.print("Raw acceleration ax, ay, az [g]: "); Serial.print("\t\t\t");
+			Serial.print  (Ax, 3); Serial.print("\t");
+			Serial.print  (Ay, 3); Serial.print("\t");
+			Serial.println(Az, 3);
+#endif
+
+#ifdef OUTPUT_RAW_ANGLES
+			// print calculated angles for roll and pitch from the raw acceleration components
+			// (yaw is undetermined here, this needs the use of the quaternion - see further on)
+			int AcceX = ((fifoBuffer[28] << 8) + fifoBuffer[29]);
+			int AcceY = ((fifoBuffer[32] << 8) + fifoBuffer[33]);
+			int AcceZ = ((fifoBuffer[36] << 8) + fifoBuffer[37]);
+			// atan2 outputs the value of -pi to pi (radians) - see http://en.wikipedia.org/wiki/Atan2
+			// We then convert it to 0 to 2 pi and then from radians to degrees - in the end it's 0 - 360 degrees
+			float ADegX = (atan2(AcceY, AcceZ) + PI) * RAD_TO_DEG;
+			float ADegY = (atan2(AcceX, AcceZ) + PI) * RAD_TO_DEG;
+			Serial.print("Calculated angle from raw acceleration - roll, pitch and yaw [degrees]: ");
+			Serial.print(ADegX); Serial.print("\t");
+			Serial.print(ADegY); Serial.print("\t");
+			Serial.println("undetermined");
+#endif
+
+
+#ifdef OUTPUT_TEMPERATURE
+			// print calculated temperature from standard registers (not available in fifoBuffer)
+			// the chip temperature may be used for correction of the temperature sensitivity of the
+			// accelerometer and the gyroscope - not done in this sketch
+			byte Temp_Out_H = spi_readReg(ChipSelPin1, 0x41);
+			byte Temp_Out_L = spi_readReg(ChipSelPin1, 0x42);
+			int TemperatureRaw = Temp_Out_H << 8 | Temp_Out_L;
+			float Temperature = (TemperatureRaw / 340.00) + 36.53; // formula from datasheet chapter 4.19
+			Serial.print("Chip temperature for corrections [deg. Celsius]: ");
+			Serial.println(Temperature, 2);
+			delay(1000);
+#endif
+
+#ifdef OUTPUT_READABLE_QUATERNION
+			Serial.print("Quaternion qw, qx, qy, qz [-1 to +1]: "); Serial.print("\t");
+			Serial.print  (q_w); Serial.print("\t");
+			Serial.print  (q_x); Serial.print("\t");
+			Serial.print  (q_y); Serial.print("\t");
+			Serial.println(q_z);
+#endif
+
+#ifdef OUTPUT_READABLE_EULER
+			// calculate Euler angles
+			// http://en.wikipedia.org/wiki/Atan2
+			// http://en.wikipedia.org/wiki/Sine (-> Inverse)
+			float euler_x = atan2((2 * q_y * q_z) - (2 * q_w * q_x), (2 * q_w * q_w) + (2 * q_z * q_z) - 1); // phi
+			float euler_y = -asin((2 * q_x * q_z) + (2 * q_w * q_y));                                        // theta
+			float euler_z = atan2((2 * q_x * q_y) - (2 * q_w * q_z), (2 * q_w * q_w) + (2 * q_x * q_x) - 1); // psi
+			euler_x = euler_x * 180 / M_PI; // angle in degrees -180 to +180
+			euler_y = euler_y * 180 / M_PI; // angle in degrees
+			euler_z = euler_z * 180 / M_PI; // angle in degrees -180 to +180
+#endif
+#endif
+
+
+#ifdef OUTPUT_TEAPOT
+			// display quaternion values in InvenSense Teapot demo format:
+			teapotPacket[2] = fifoBuffer[0];
+			teapotPacket[3] = fifoBuffer[1];
+			teapotPacket[4] = fifoBuffer[4];
+			teapotPacket[5] = fifoBuffer[5];
+			teapotPacket[6] = fifoBuffer[8];
+			teapotPacket[7] = fifoBuffer[9];
+			teapotPacket[8] = fifoBuffer[12];
+			teapotPacket[9] = fifoBuffer[13];
+			Serial.write(teapotPacket, 14);
+			teapotPacket[11]++; // packetCount, loops at 0xFF on purpose
+#endif
+
+#ifdef GYRO_OUTPUT
+			if (gyro_output == true) {
+				gyro_output = false;
+				Serial.print("Raw gyro rotation ax, ay, az [value/deg/s]: "); Serial.print("\t\t");
+				Serial.print(GyroX); Serial.print("\t");
+				Serial.print(GyroY); Serial.print("\t");
+				Serial.println(GyroZ);
+			}
+#endif
+
+
+		}
+	}
 }

@@ -1,2 +1,6 @@
 cscope*
 .tags
+/MPUteapot/libraries/
+/MPUteapot/build-tmp/
+/MPUteapot/modes/
+/MPUteapot/tools/

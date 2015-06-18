@@ -3,10 +3,18 @@
 
 #include <SPI.h>
 
-#define DEBUG
+// #define DEBUG
 // #define OUTPUT_TEMPERATURE
-#define OUTPUT_READABLE_EULER
+// #define OUTPUT_RAW_GYRO
+// #define OUTPUT_READABLE_ROLLPITCHYAW
+
+// #define CALI_THRO
+// #define OUTPUT_READABLE_EULER
 // #define OUTPUT_TEAPOT
+#define RC_OUTPUT
+#define EULER_OUTPUT
+#define THRROTLE_OUTPUT
+#define GYRO_OUTPUT
 /**
  * Serial.print definitions for debug output
  */
@@ -21,6 +29,9 @@
 #define DEBUG_PRINTLN(x)
 #define DEBUG_PRINTLNF(x, y)
 #endif
+
+
+extern byte teapotPacket[14];
 
 
 const int blueled = 25;
@@ -51,7 +62,8 @@ extern byte fifoBuffer[64];          // FIFO storage buffer (in fact only 42 use
 
 // Remote Control 
 void rc_setup();
+int rc_adjust();
 void rc_get();
-extern long roll, pitch, throttle, yaw;
+extern long roll, pitch, throttle, yaw, ch5;
 
 #endif
