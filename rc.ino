@@ -2,7 +2,7 @@
  * Use input capture to detect and measure the Digital Pin 48
  * Timer5: Input Capture -> Digital Pin 48
  */
-long roll, pitch, throttle, yaw, ch5;
+float roll, pitch, throttle, yaw, ch5;
 const int inputCapturePin = 48; // input pin fixed to internal Timer
 // const int ledPin = 25;
 static const int prescale = 8; // prescale factor (each tick 0.5 us @16MHz)
@@ -17,11 +17,12 @@ static volatile byte save = 0; // 0 disables save captured data, 1 enables
 static volatile unsigned int results[numberOfEntries]; // note this is 16 bit value
 static volatile double millis_duration[numberOfEntries]; // note this is 16 bit value
 
-static int rc_adjust_count = 1000;
+static int rc_adjust_count = 100;
 static int pitch_adjust = 0;
 static int roll_adjust = 0;
 static int yaw_adjust = 0;
 static boolean rc_adjust_bit = false;
+
 
 #define PPM_SUM_capture
 
@@ -118,9 +119,8 @@ void rc_get() {
     // Although the range of roll or pitch is form -180 to 180, the drone can not reach large degrees.
     roll = map(results[2], 1240, 3060, -30, 30) + roll_adjust;
     pitch = map(results[4], 1705, 3250, -30, 30) + pitch_adjust;
-    // throttle = map(results[6], 1645, 3220, 1000, 1800);
-    throttle = map(results[6], 1500, 2900, 10, 170);
-    throttle = constrain(throttle, 10, 170);//start from non-zero to finish the calibration
+    throttle = map(results[6], 1500, 2900, MIN_SIGNAL, MAX_SIGNAL);
+    throttle = constrain(throttle, MIN_SIGNAL, MAX_SIGNAL);//start from non-zero to finish the calibration
     yaw = map(results[8], 1275, 3060, -180, 180) + yaw_adjust;
     ch5 = results[10];
 
@@ -151,40 +151,12 @@ void rc_get() {
 
     }
 #endif
-#ifdef RC_OUTPUT
-    if (rc_output == true) {
-      rc_output = false;
-      Serial.println(millis());
-      Serial.print("++++++The remote control pitch, roll, yaw, throttle and ch5: ");
-      Serial.print(pitch); Serial.print('\t');
-      Serial.print(roll); Serial.print('\t');
-      Serial.print(yaw); Serial.print('\t');
-      Serial.print(throttle); Serial.print('\t');
-      Serial.print(ch5);  Serial.print('\t');
-      Serial.print("(");
-      Serial.print(pitch_adjust); Serial.print("\t");
-      Serial.print(roll_adjust); Serial.print("\t");
-      Serial.print(yaw_adjust);
-      Serial.print(")"); Serial.println();
-    }
-#endif
   }
   else {
     roll = 0;
     pitch = 0;
-    throttle = 10;
+    throttle = MIN_SIGNAL;
     yaw = 0;
 
-#ifdef RC_OUTPUT
-    if (rc_output == true) {
-      rc_output = false;
-      Serial.print("......Getting the remote control pitch, roll, yaw and throttle adjusting value : ");
-      Serial.print(pitch); Serial.print('\t');
-      Serial.print(roll); Serial.print('\t');
-      Serial.print(yaw); Serial.print('\t');
-      Serial.print(throttle); Serial.print('\t');
-      Serial.println(ch5);
-    }
-#endif
   }
 }

@@ -31,6 +31,9 @@ int GyroX = 0;
 int GyroY = 0;
 int GyroZ = 0;
 
+unsigned long serialTime; //this will help us know when to talk with processing
+extern float pitch_angle_pid_output;
+extern PID pitch_angle;
 
 //Timer2 Overflow Interrupt Vector, called every 1ms
 ISR(TIMER2_OVF_vect) {
@@ -38,20 +41,20 @@ ISR(TIMER2_OVF_vect) {
 	rc_time_count++;
 	system_time_count++;
 	count++;               //Increments the interrupt counter
-	if (count >= 1000) {
+	if (count >= 500) {
 
-		#ifdef EULER_OUTPUT
+#ifdef EULER_OUTPUT
 		euler_output = true; // output euler enable
-		#endif
-		#ifdef GYRO_OUTPUT
+#endif
+#ifdef GYRO_OUTPUT
 		gyro_output = true; // output gyro enable
-		#endif
-		#ifdef THROTTLE_OUTPUT
+#endif
+#ifdef THROTTLE_OUTPUT
 		throttle_output = true; // output euler enable
-		#endif
-		#ifdef RC_OUTPUT
+#endif
+#ifdef RC_OUTPUT
 		rc_output = true; // output remote control enable
-		#endif
+#endif
 
 		// digitalWrite(27, toggle);
 		// toggle = !toggle;    //toggles the LED state
@@ -168,7 +171,7 @@ void setup()
 	}
 
 
-	Serial.println("############# LOOP... ##############");
+	// Serial.println("############# LOOP... ##############");
 	system_time_count = 0; // Start to count the system time.
 	mpu_time_count = 0;
 	rc_time_count = 0;
@@ -177,23 +180,23 @@ void setup()
 void loop() {
 
 
-	int rev, incomingByte;
+	// int rev, incomingByte;
 
-	if (rev = Serial.available()) {
-		incomingByte = Serial.read();
-		if (incomingByte == 'r') {
-			redled_state = !redled_state;
-			digitalWrite(redled, redled_state);
-		}
-		else if (incomingByte == 'b') {
-			blueled_state = !blueled_state;
-			digitalWrite(blueled, blueled_state);
-		}
-		else if (incomingByte == 'y') {
-			yellowled_state = !yellowled_state;
-			digitalWrite(yellowled, yellowled_state);
-		}
-	}
+	// if (rev = Serial.available()) {
+	// 	incomingByte = Serial.read();
+	// 	if (incomingByte == 'r') {
+	// 		redled_state = !redled_state;
+	// 		digitalWrite(redled, redled_state);
+	// 	}
+	// 	else if (incomingByte == 'b') {
+	// 		blueled_state = !blueled_state;
+	// 		digitalWrite(blueled, blueled_state);
+	// 	}
+	// 	else if (incomingByte == 'y') {
+	// 		yellowled_state = !yellowled_state;
+	// 		digitalWrite(yellowled, yellowled_state);
+	// 	}
+	// }
 
 	// if DMP initialization during setup failed, don't try to do anything
 	if (!dmpReady)
@@ -215,6 +218,7 @@ void loop() {
 		// Serial.println(mpu_time_count);
 		mpu_time_count = 0;
 		mpu_get();
+		motor_adjust();
 	}
 
 	if (rc_time_count >= 10) {
@@ -223,8 +227,131 @@ void loop() {
 		rc_time_count = 0;
 		rc_adjust();
 		rc_get();
-		motor_adjust();
-		motor_output();
+	}
+	motor_output();
+
+	//send-receive with processing if it's time
+	if (millis() > serialTime)
+	{
+		// SerialReceive();
+		// SerialSend();
+		Serial_rc();
+		serialTime += 100;
 	}
 
 } // End of loop()
+
+
+
+/********************************************
+ * Serial Communication functions / helpers
+ ********************************************/
+
+
+union {                // This Data structure lets
+	byte asBytes[24];    // us take the byte array
+	float asFloat[6];    // sent from processing and
+}                      // easily convert it to a
+foo;                   // float array
+
+
+
+// getting float values from processing into the arduino
+// was no small task.  the way this program does it is
+// as follows:
+//  * a float takes up 4 bytes.  in processing, convert
+//    the array of floats we want to send, into an array
+//    of bytes.
+//  * send the bytes to the arduino
+//  * use a data structure known as a union to convert
+//    the array of bytes back into an array of floats
+
+//  the bytes coming from the arduino follow the following
+//  format:
+//  0: 0=Manual, 1=Auto, else = ? error ?
+//  1: 0=Direct, 1=Reverse, else = ? error ?
+//  2-5: float pitch
+//  6-9: float input
+//  10-13: float output
+//  14-17: float P_Param
+//  18-21: float I_Param
+//  22-245: float D_Param
+void SerialReceive()
+{
+
+	// read the bytes sent from Processing
+	int index = 0;
+	byte Auto_Man = -1;
+	byte Direct_Reverse = -1;
+	while (Serial.available() && index < 26)
+	{
+		if (index == 0) Auto_Man = Serial.read();
+		else if (index == 1) Direct_Reverse = Serial.read();
+		else foo.asBytes[index - 2] = Serial.read();
+		index++;
+	}
+
+	// if the information we got was in the correct format,
+	// read it into the system
+	if (index == 26  && (Auto_Man == 0 || Auto_Man == 1) && (Direct_Reverse == 0 || Direct_Reverse == 1))
+	{
+		pitch = double(foo.asFloat[0]);
+		//Input=double(foo.asFloat[1]);       // * the user has the ability to send the
+		//   value of "Input"  in most cases (as
+		//   in this one) this is not needed.
+		if (Auto_Man == 0)                    // * only change the output if we are in
+		{	//   manual mode.  otherwise we'll get an
+			pitch_angle_pid_output = double(foo.asFloat[2]);    //   output blip, then the controller will
+		}                                     //   overwrite.
+
+		double p, i, d;                       // * read in and set the controller tunings
+		p = double(foo.asFloat[3]);           //
+		i = double(foo.asFloat[4]);           //
+		d = double(foo.asFloat[5]);           //
+		pitch_angle.SetTunings(p, i, d);            //
+
+		if (Auto_Man == 0) pitch_angle.SetMode(MANUAL); // * set the controller mode
+		else pitch_angle.SetMode(AUTOMATIC);             //
+
+		if (Direct_Reverse == 0) pitch_angle.SetControllerDirection(DIRECT); // * set the controller Direction
+		else pitch_angle.SetControllerDirection(REVERSE);          //
+	}
+	Serial.flush();                         // * clear any random data from the serial buffer
+}
+
+// unlike our tiny microprocessor, the processing ap
+// has no problem converting strings into floats, so
+// we can just send strings.  much easier than getting
+// floats from processing to here no?
+void SerialSend()
+{
+	Serial.print("PID ");
+	Serial.print(pitch);
+	Serial.print(" ");
+	Serial.print(rpy_pit);
+	Serial.print(" ");
+	Serial.print(pitch_angle_pid_output);
+	Serial.print(" ");
+	Serial.print(pitch_angle.GetKp());
+	Serial.print(" ");
+	Serial.print(pitch_angle.GetKi());
+	Serial.print(" ");
+	Serial.print(pitch_angle.GetKd());
+	Serial.print(" ");
+	if (pitch_angle.GetMode() == AUTOMATIC) Serial.print("Automatic");
+	else Serial.print("Manual");
+	Serial.print(" ");
+	if (pitch_angle.GetDirection() == DIRECT) Serial.println("Direct");
+	else Serial.println("Reverse");
+}
+
+
+void Serial_rc() {
+
+		Serial.print("Getting the remote control pitch, roll, yaw and throttle adjusting value : ");
+		Serial.print(pitch); Serial.print('\t');
+		Serial.print(roll); Serial.print('\t');
+		Serial.print(yaw); Serial.print('\t');
+		Serial.print(throttle); Serial.print('\t');
+		Serial.println(ch5);
+}

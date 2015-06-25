@@ -2,19 +2,20 @@
 #define CONFIG_H
 
 #include <SPI.h>
+#include "PID_v1.h"
 
 // #define DEBUG
 // #define OUTPUT_TEMPERATURE
 // #define OUTPUT_RAW_GYRO
 // #define OUTPUT_READABLE_ROLLPITCHYAW
 
-// #define CALI_THRO
+#define CALI_THRO
 // #define OUTPUT_READABLE_EULER
 // #define OUTPUT_TEAPOT
-#define RC_OUTPUT
-#define EULER_OUTPUT
-#define THRROTLE_OUTPUT
-#define GYRO_OUTPUT
+// #define RC_OUTPUT
+// #define EULER_OUTPUT
+// #define THROTTLE_OUTPUT
+// #define GYRO_OUTPUT
 /**
  * Serial.print definitions for debug output
  */
@@ -60,10 +61,13 @@ extern unsigned int packetSize; // number of unique bytes of data written by the
 extern unsigned int fifoCount;       // count of all bytes currently in FIFO
 extern byte fifoBuffer[64];          // FIFO storage buffer (in fact only 42 used...) // But in datasheet, fifo has 1024bytes and FIFO count may be large...
 
+#define MAX_SIGNAL 1900
+#define MIN_SIGNAL 1000
+
 // Remote Control 
 void rc_setup();
 int rc_adjust();
 void rc_get();
-extern long roll, pitch, throttle, yaw, ch5;
+extern float roll, pitch, throttle, yaw, ch5;
 
 #endif
