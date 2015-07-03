@@ -23,7 +23,10 @@ extern int GyroX;
 extern int GyroY;
 extern int GyroZ;
 
-int motor_adjust_count = 100;
+extern const int MAX_SIGNAL;
+extern const int MIN_SIGNAL;
+
+int motor_adjust_count = 6000;
 boolean motor_adjust_bit = false;
 
 float roll_angle_pid_output = 0;
@@ -46,16 +49,17 @@ long throttle2 = 0;
 long throttle3 = 0;
 long throttle4 = 0;
 
+
 void motor_setup() {
 	motor1.attach(12);
 	motor2.attach(11);
 	motor3.attach(8);
 	motor4.attach(7);
 
-	// motor1.writeMicroseconds(MIN_SINGLE);
-	// motor2.writeMicroseconds(MIN_SINGLE);
-	// motor3.writeMicroseconds(MIN_SINGLE);
-	// motor4.writeMicroseconds(MIN_SINGLE);
+	motor1.writeMicroseconds(MIN_SIGNAL);
+	motor2.writeMicroseconds(MIN_SIGNAL);
+	motor3.writeMicroseconds(MIN_SIGNAL);
+	motor4.writeMicroseconds(MIN_SIGNAL);
 
 	// pitch_angle.Init(1.5, 0, 0);
 	// roll_angle.Init(0.01, 0, 0);
@@ -107,7 +111,7 @@ void motor_output() {
 		motor4.writeMicroseconds(throttle);
 #else
 
-		if (throttle > 1200) {
+		if (throttle > 1100) {
 
 			// pitch_angle_pid_output = pitch_angle.Update(pitch - rpy_pit);
 			// roll_angle_pid_output = roll_angle.Update(roll - rpy_rol);
@@ -148,10 +152,10 @@ void motor_output() {
 			throttle3 = throttle + pitch_angle_pid_output;
 			throttle4 = throttle;
 
-			throttle1 = constrain(throttle1, 1, MAX_SINGLE);//start from non-zero to finish the calibration
-			throttle2 = constrain(throttle2, 1, MAX_SINGLE);//start from non-zero to finish the calibration
-			throttle3 = constrain(throttle3, 1, MAX_SINGLE);//start from non-zero to finish the calibration
-			throttle4 = constrain(throttle4, 1, MAX_SINGLE);//start from non-zero to finish the calibration
+			throttle1 = constrain(throttle1, 1, MAX_SIGNAL);//start from non-zero to finish the calibration
+			throttle2 = constrain(throttle2, 1, MAX_SIGNAL);//start from non-zero to finish the calibration
+			throttle3 = constrain(throttle3, 1, MAX_SIGNAL);//start from non-zero to finish the calibration
+			throttle4 = constrain(throttle4, 1, MAX_SIGNAL);//start from non-zero to finish the calibration
 
 			motor1.writeMicroseconds(throttle1);
 			motor2.writeMicroseconds(throttle2);
@@ -162,23 +166,22 @@ void motor_output() {
 		else {
 
 			//It has to output throttle, even if throttle < 20, otherwise, the motor will "bibibibibibibibibi"
-			motor1.writeMicroseconds(MIN_SINGLE);
-			motor2.writeMicroseconds(MIN_SINGLE);
-			motor3.writeMicroseconds(MIN_SINGLE);
-			motor4.writeMicroseconds(MIN_SINGLE);
+			motor1.writeMicroseconds(MIN_SIGNAL);
+			motor2.writeMicroseconds(MIN_SIGNAL);
+			motor3.writeMicroseconds(MIN_SIGNAL);
+			motor4.writeMicroseconds(MIN_SIGNAL);
 
 		}
 	}
 	else {
-		motor1.writeMicroseconds(MIN_SINGLE);
-		motor2.writeMicroseconds(MIN_SINGLE);
-		motor3.writeMicroseconds(MIN_SINGLE);
-		motor4.writeMicroseconds(MIN_SINGLE);
+		motor1.writeMicroseconds(MIN_SIGNAL);
+		motor2.writeMicroseconds(MIN_SIGNAL);
+		motor3.writeMicroseconds(MIN_SIGNAL);
+		motor4.writeMicroseconds(MIN_SIGNAL);
 
 	}
 #endif
 
 
 
-	}
 }

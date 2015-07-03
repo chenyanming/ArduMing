@@ -2,6 +2,7 @@
  * PE6: attachInterrupt(6, dmpDataReady, RISING); // the 0 points correctly to INT6 / PE6
  */
 #include "config.h"
+#include "Kalman.h"
 #define MPU6050_DMP_CODE_SIZE         1929    // the number of values for writing the dmpMemory[]
 #define MPU6050_DMP_CONFIG_SIZE        192    // the number of values for writing the dmpConfig[]
 #define MPU6050_DMP_UPDATES_SIZE        47    // the number of values for writing the dmpUpdates[]
@@ -12,6 +13,23 @@ void dmpDataReady() {
 	mpuInterrupt = true;
 
 }
+
+float rpy_rol = 0;
+float rpy_pit = 0;
+float rpy_yaw = 0;
+
+float GyroX = 0;
+float GyroY = 0;
+float GyroZ = 0;
+
+//Kalman
+Kalman kalmanX; 
+Kalman kalmanY;
+uint32_t timer;
+float kal_pit = 0;
+float kal_rol = 0;
+float kal_yaw = 0;
+
 /* ================================================================================================ *\
  | Default MotionApps v2.0 42-byte FIFO packet structure (each value consists of 2 bytes):          |
  | -> this is array fifoBuffer[0-41]                                                                |
@@ -729,6 +747,24 @@ unsigned int getFIFOCount(int ChipSelPin)
 	return two_bytes;
 }
 
+// #define MPU6050_RA_XG_OFFS_USRH     0x13 //[15:0] XG_OFFS_USR
+// #define MPU6050_RA_XG_OFFS_USRL     0x14
+// #define MPU6050_RA_YG_OFFS_USRH     0x15 //[15:0] YG_OFFS_USR
+// #define MPU6050_RA_YG_OFFS_USRL     0x16
+// #define MPU6050_RA_ZG_OFFS_USRH     0x17 //[15:0] ZG_OFFS_USR
+// #define MPU6050_RA_ZG_OFFS_USRL     0x18
+
+void setXGyroOffset(int16_t offset) {
+	spi_writeReg(ChipSelPin1, 0x13, offset);
+}
+
+void setYGyroOffset(int16_t offset) {
+	spi_writeReg(ChipSelPin1, 0x15, offset);
+}
+
+void setZGyroOffset(int16_t offset) {
+	spi_writeReg(ChipSelPin1, 0x17, offset);
+}
 // ############################################################################################## //
 // ################################ Main DMP initialize function ################################ //
 // ############################################################################################## //
@@ -897,12 +933,10 @@ unsigned char dmpInitialize()
 			// SPIwriteBits(0x01, 6, 6, ygOffsetTC, ChipSelPin1);
 			// SPIwriteBits(0x02, 6, 6, zgOffsetTC, ChipSelPin1);
 
-			/*
-			DEBUG_PRINTLN(F("Setting X/Y/Z gyro user offsets to zero..."));
-			setXGyroOffset(0);
-			setYGyroOffset(0);
-			setZGyroOffset(0);
-			*/
+			// Serial.println("Setting X/Y/Z gyro user offsets to zero...");
+			// setXGyroOffset(0);
+			// setYGyroOffset(0);
+			// setZGyroOffset(0);
 
 			DEBUG_PRINTLN(F("###################### 6. Writing final memory update 1/7 (function unknown)..."));
 			byte update_number = 1;      // holds update number for user information
@@ -1061,6 +1095,12 @@ unsigned char dmpInitialize()
 	delay(200); // time to see the LED blink
 
 	// Serial.println("Digital Motion Processor (DMP) initializing done.");
+
+	// Kalman init
+	kalmanX.setAngle(0);
+	kalmanY.setAngle(0);
+	timer = micros();
+
 	return 0; // success
 
 
@@ -1166,6 +1206,13 @@ unsigned int mpu_get() {
 			rpy_rol = rpy_rol * 180 / M_PI;
 			rpy_yaw = rpy_yaw * 180 / M_PI;
 
+			//Kalman cal
+			double dt = (double)(micros() - timer) / 1000000;
+			timer = micros();
+			double gyroXrate = GyroX / 131.0; // Convert to deg/s
+			double gyroYrate = GyroY / 131.0; // Convert to deg/s
+			kal_rol = kalmanX.getAngle(rpy_rol, gyroXrate, dt);
+			kal_pit = kalmanY.getAngle(rpy_pit, gyroYrate, dt);
 
 // #endif
 
@@ -1261,15 +1308,6 @@ unsigned int mpu_get() {
 			teapotPacket[11]++; // packetCount, loops at 0xFF on purpose
 #endif
 
-#ifdef GYRO_OUTPUT
-			if (gyro_output == true) {
-				gyro_output = false;
-				Serial.print("Raw gyro rotation ax, ay, az [value/deg/s]: "); Serial.print("\t\t");
-				Serial.print(GyroX); Serial.print("\t");
-				Serial.print(GyroY); Serial.print("\t");
-				Serial.println(GyroZ);
-			}
-#endif
 
 
 		}

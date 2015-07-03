@@ -17,12 +17,14 @@ static volatile byte save = 0; // 0 disables save captured data, 1 enables
 static volatile unsigned int results[numberOfEntries]; // note this is 16 bit value
 static volatile double millis_duration[numberOfEntries]; // note this is 16 bit value
 
-static int rc_adjust_count = 100;
+static int rc_adjust_count = 1000;
 static int pitch_adjust = 0;
 static int roll_adjust = 0;
 static int yaw_adjust = 0;
 static boolean rc_adjust_bit = false;
 
+extern const int MAX_SIGNAL;
+extern const int MIN_SIGNAL;
 
 #define PPM_SUM_capture
 

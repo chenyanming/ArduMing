@@ -12,6 +12,9 @@ boolean blueled_state = true;
 #define SPI0_MOSI_PIN 51
 #define SPI0_SCK_PIN  52
 
+const int MAX_SIGNAL = 1900;
+const int MIN_SIGNAL = 1000;
+
 unsigned int toggle = 0;  //used to keep the state of the LED
 unsigned int count = 0;   //used to keep count of how many interrupts were fired
 unsigned int mpu_time_count = 0; //The MPU running time
@@ -234,8 +237,8 @@ void loop() {
 	if (millis() > serialTime)
 	{
 		// SerialReceive();
-		// SerialSend();
-		Serial_rc();
+		SerialSend();
+		// Serial_rc();
 		serialTime += 100;
 	}
 
