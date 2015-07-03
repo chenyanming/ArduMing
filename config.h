@@ -68,4 +68,6 @@ int rc_adjust();
 void rc_get();
 extern float roll, pitch, throttle, yaw, ch5;
 
+// IMU
+extern float rpy_pit, rpy_rol, rpy_yaw, kal_pit, kal_rol, kal_yaw, GyroX, GyroY, GyroZ;
 #endif

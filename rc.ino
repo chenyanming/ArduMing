@@ -88,8 +88,8 @@ int rc_adjust() {
     rc_adjust_count--;
 
     gate = 1; // enable sampling
-    roll_tmp = map(results[2], 1240, 3060, -30, 30);
-    pitch_tmp = map(results[4], 1705, 3250, -30, 30);
+    roll_tmp = map(results[2], 1240, 3060, -20, 20);
+    pitch_tmp = map(results[4], 2000, 3500, -20, 20);
     yaw_tmp = map(results[8], 1275, 3060, -180, 180);
 
     pitch_adjust = -pitch_tmp;
@@ -119,8 +119,8 @@ void rc_get() {
     // Serial.println("") ;
     // Serial.println("Durations are: ") ;
     // Although the range of roll or pitch is form -180 to 180, the drone can not reach large degrees.
-    roll = map(results[2], 1240, 3060, -30, 30) + roll_adjust;
-    pitch = map(results[4], 1705, 3250, -30, 30) + pitch_adjust;
+    roll = map(results[2], 1240, 3060, -20, 20) + roll_adjust;
+    pitch = map(results[4], 2000, 3500, -20, 20) + pitch_adjust;
     throttle = map(results[6], 1500, 2900, MIN_SIGNAL, MAX_SIGNAL);
     throttle = constrain(throttle, MIN_SIGNAL, MAX_SIGNAL);//start from non-zero to finish the calibration
     yaw = map(results[8], 1275, 3060, -180, 180) + yaw_adjust;

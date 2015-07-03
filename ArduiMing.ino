@@ -26,17 +26,19 @@ boolean gyro_output = false;
 boolean throttle_output = false;
 boolean rc_output = false;
 
-float rpy_rol = 0;
-float rpy_pit = 0;
-float rpy_yaw = 0;
-
-int GyroX = 0;
-int GyroY = 0;
-int GyroZ = 0;
-
 unsigned long serialTime; //this will help us know when to talk with processing
 extern float pitch_angle_pid_output;
 extern PID pitch_angle;
+
+
+extern int throttle1;
+extern int throttle2;
+extern int throttle3;
+extern int throttle4;
+
+extern float kal_pit_adjust;
+extern float kal_rol_adjust;
+extern float kal_yaw_adjust;
 
 //Timer2 Overflow Interrupt Vector, called every 1ms
 ISR(TIMER2_OVF_vect) {
@@ -73,6 +75,7 @@ ISR(TIMER2_OVF_vect) {
 void setup()
 {
 	Serial.begin(115200);	// Set the baud rate to 115200
+	Serial2.begin(57600);
 
 	rc_setup();
 	motor_setup();
@@ -215,23 +218,26 @@ void loop() {
 	// do nothing until mpuInterrupt = true or fifoCount >= 42
 	// }
 
-	if (mpu_time_count >= 4) {
-		//By decreasing the time counter I can estimate the code run time. After it output 4ms(here) - the desired run time, we can comment the print code
-		// Serial.print("The MPU updating time: ");
-		// Serial.println(mpu_time_count);
-		mpu_time_count = 0;
-		mpu_get();
-		motor_adjust();
-	}
+	mpu_get();
+
+
+	// if (mpu_time_count >= 4) {
+	//By decreasing the time counter I can estimate the code run time. After it output 4ms(here) - the desired run time, we can comment the print code
+	// Serial.print("The MPU updating time: ");
+	// Serial.println(mpu_time_count);
+	// mpu_time_count = 0;
+	// }
+
+	rc_get();
 
 	if (rc_time_count >= 10) {
 		// Serial.print("The Remote Control updating time: ");
 		// Serial.println(rc_time_count);
 		rc_time_count = 0;
+		motor_adjust();
 		rc_adjust();
-		rc_get();
+		motor_output();
 	}
-	motor_output();
 
 	//send-receive with processing if it's time
 	if (millis() > serialTime)
@@ -239,8 +245,12 @@ void loop() {
 		// SerialReceive();
 		SerialSend();
 		// Serial_rc();
+		// Serial_gyro();
+		// Serial_pitch();
+		// Serial2.println("testing...");
 		serialTime += 100;
 	}
+
 
 } // End of loop()
 
@@ -258,7 +268,7 @@ union {                // This Data structure lets
 foo;                   // float array
 
 
-
+#if 0
 // getting float values from processing into the arduino
 // was no small task.  the way this program does it is
 // as follows:
@@ -321,6 +331,7 @@ void SerialReceive()
 	}
 	Serial.flush();                         // * clear any random data from the serial buffer
 }
+#endif
 
 // unlike our tiny microprocessor, the processing ap
 // has no problem converting strings into floats, so
@@ -331,9 +342,17 @@ void SerialSend()
 	Serial.print("PID ");
 	Serial.print(pitch);
 	Serial.print(" ");
-	Serial.print(rpy_pit);
+	Serial.print(kal_pit);
 	Serial.print(" ");
 	Serial.print(pitch_angle_pid_output);
+	Serial.print(" ");
+	Serial.print(float(throttle1) / 1000);
+	Serial.print(" ");
+	Serial.print(float(throttle3) / 1000);
+	Serial.print(" ");
+	Serial.print(GyroX);
+	Serial.print(" ");
+	Serial.print(rpy_yaw);
 	Serial.print(" ");
 	Serial.print(pitch_angle.GetKp());
 	Serial.print(" ");
@@ -341,20 +360,34 @@ void SerialSend()
 	Serial.print(" ");
 	Serial.print(pitch_angle.GetKd());
 	Serial.print(" ");
-	if (pitch_angle.GetMode() == AUTOMATIC) Serial.print("Automatic");
-	else Serial.print("Manual");
-	Serial.print(" ");
-	if (pitch_angle.GetDirection() == DIRECT) Serial.println("Direct");
-	else Serial.println("Reverse");
+	Serial.println("END");
+	// if (pitch_angle.GetMode() == AUTOMATIC) Serial.print("Automatic");
+	// else Serial.print("Manual");
+	// Serial.print(" ");
+	// if (pitch_angle.GetDirection() == DIRECT) Serial.println("Direct");
+	// else Serial.println("Reverse");
 }
 
 
 void Serial_rc() {
 
-		Serial.print("Getting the remote control pitch, roll, yaw and throttle adjusting value : ");
-		Serial.print(pitch); Serial.print('\t');
-		Serial.print(roll); Serial.print('\t');
-		Serial.print(yaw); Serial.print('\t');
-		Serial.print(throttle); Serial.print('\t');
-		Serial.println(ch5);
+	Serial.print("Getting the remote control pitch, roll, yaw and throttle adjusting value : ");
+	Serial.print(pitch); Serial.print('\t');
+	Serial.print(roll); Serial.print('\t');
+	Serial.print(yaw); Serial.print('\t');
+	Serial.print(throttle); Serial.print('\t');
+	Serial.println(ch5);
+}
+
+void Serial_gyro() {
+	Serial.print("Raw gyro rotation ax, ay, az [value/deg/s]: "); Serial.print("\t\t");
+	Serial.print(GyroX); Serial.print("\t");
+	Serial.print(GyroY); Serial.print("\t");
+	Serial.println(GyroZ);
+}
+
+void Serial_pitch() {
+	Serial.print(pitch); Serial.print("\t");
+	Serial.print(rpy_pit); Serial.print("\t");
+	Serial.println(kal_pit);
 }

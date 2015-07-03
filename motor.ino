@@ -8,6 +8,7 @@
  */
 #include <Servo.h>
 #include "PID_v1.h"
+// #include "pid.h"
 
 Servo motor1, motor2, motor3, motor4;
 
@@ -15,18 +16,18 @@ extern float roll, pitch, throttle, yaw;
 extern boolean euler_output;
 extern boolean throttle_output;
 
-extern float rpy_rol;
-extern float rpy_pit;
-extern float rpy_yaw;
+extern float kal_rol;
+extern float kal_pit;
+extern float kal_yaw;
 
-extern int GyroX;
-extern int GyroY;
-extern int GyroZ;
+extern float GyroX;
+extern float GyroY;
+extern float GyroZ;
 
 extern const int MAX_SIGNAL;
 extern const int MIN_SIGNAL;
 
-int motor_adjust_count = 6000;
+int motor_adjust_count = 2800;
 boolean motor_adjust_bit = false;
 
 float roll_angle_pid_output = 0;
@@ -37,17 +38,22 @@ float pitch_pid_output = 0;
 float yaw_pid_output = 0;
 // Pid roll_angle, pitch_angle, yaw_angle, roll_gyro, pitch_gyro, yaw_gyro;
 
-float pitch_kp = 0.05, pitch_ki = 0.3, pitch_kd = 0.0;
-PID pitch_angle(&rpy_pit, &pitch_angle_pid_output, &pitch, pitch_kp, pitch_ki, pitch_kd, DIRECT);
+// PID pitch_angle(&kal_pit, &pitch_angle_pid_output, &pitch, 0.65, 0, 0, DIRECT);
+// PID pitch_angle(&kal_pit, &pitch_angle_pid_output, &pitch, 0.8, 0, 0, DIRECT);
+// PID pitch_angle(&kal_pit, &pitch_angle_pid_output, &pitch, 1.6, 0.04, 0, DIRECT);
+// PID pitch_angle(&kal_pit, &pitch_angle_pid_output, &pitch, 2, 0.04, 0, DIRECT);
+PID pitch_angle(&kal_pit, &pitch_angle_pid_output, &pitch, 4, 0.04, 0, DIRECT);
+// PID pitch_angle(&kal_pit, &pitch_angle_pid_output, &pitch, 5.9, 0.05, 0, DIRECT);
+// PID pitch_gyrox(&GyroX, &pitch_pid_output, &pitch_angle_pid_output, 0, 0.0, 0.0, DIRECT);
 
-float rpy_pit_adjust = 0;
-float rpy_rol_adjust = 0;
-float rpy_yaw_adjust = 0;
+float kal_pit_adjust = 0;
+float kal_rol_adjust = 0;
+float kal_yaw_adjust = 0;
 
-long throttle1 = 0;
-long throttle2 = 0;
-long throttle3 = 0;
-long throttle4 = 0;
+int throttle1 = 0;
+int throttle2 = 0;
+int throttle3 = 0;
+int throttle4 = 0;
 
 
 void motor_setup() {
@@ -61,7 +67,7 @@ void motor_setup() {
 	motor3.writeMicroseconds(MIN_SIGNAL);
 	motor4.writeMicroseconds(MIN_SIGNAL);
 
-	// pitch_angle.Init(1.5, 0, 0);
+	// pitch_angle.Init(40, 0, 0);
 	// roll_angle.Init(0.01, 0, 0);
 	// yaw_angle.Init(0.01, 0, 0);
 	// pitch_gyro.Init(0.01, 1, 0.02);
@@ -70,21 +76,24 @@ void motor_setup() {
 	//turn the PID on
 	pitch_angle.SetMode(AUTOMATIC);
 	pitch_angle.SetSampleTime(10);
-	pitch_angle.SetOutputLimits(-20, 20);
+	pitch_angle.SetOutputLimits(-450, 450);
+	// pitch_gyrox.SetMode(AUTOMATIC);
+	// pitch_gyrox.SetSampleTime(10);
+	// pitch_gyrox.SetOutputLimits(-500, 500);
 }
 
 void motor_adjust() {
 	static float last_pitch;
 	if (motor_adjust_count > 0) {
 		motor_adjust_count--;
-		rpy_pit_adjust = -rpy_pit;
-		rpy_rol_adjust = -rpy_rol;
-		rpy_yaw_adjust = -rpy_yaw;
+		kal_pit_adjust = -kal_pit;
+		kal_rol_adjust = -kal_rol;
+		kal_yaw_adjust = -kal_yaw;
 		if (motor_adjust_count == 0) {
 			// Serial.println("Drone adjust value. Get.");
-			// rpy_pit = rpy_pit + rpy_pit_adjust;
-			// rpy_rol = rpy_rol + rpy_rol_adjust;
-			// rpy_yaw = rpy_yaw + rpy_yaw_adjust;
+			// kal_pit = kal_pit + kal_pit_adjust;
+			// kal_rol = kal_rol + kal_rol_adjust;
+			// kal_yaw = kal_yaw + kal_yaw_adjust;
 			motor_adjust_bit = true;
 			digitalWrite(blueled, LOW);
 			digitalWrite(yellowled, LOW);
@@ -92,17 +101,20 @@ void motor_adjust() {
 		}
 	}
 	else {
-		if (last_pitch != rpy_pit)
+		if (last_pitch != kal_pit)
 		{
-			rpy_pit = rpy_pit + rpy_pit_adjust;
-			rpy_rol = rpy_rol + rpy_rol_adjust;
-			rpy_yaw = rpy_yaw + rpy_yaw_adjust;
+			// kal_pit = kal_pit + 0.54;
+			// kal_rol = kal_rol - 1.29;
+			// kal_pit = kal_pit + kal_pit_adjust;
+			// kal_rol = kal_rol - kal_rol_adjust;
+			// kal_yaw = kal_yaw + kal_yaw_adjust;
 		}
-		last_pitch = rpy_pit;
+		last_pitch = kal_pit;
 	}
 }
 
 void motor_output() {
+	float tmp;
 	if (motor_adjust_bit == true) {
 #ifdef CALI_THRO
 		motor1.writeMicroseconds(throttle);
@@ -111,11 +123,11 @@ void motor_output() {
 		motor4.writeMicroseconds(throttle);
 #else
 
-		if (throttle > 1100) {
+		if (throttle > 1050) {
 
-			// pitch_angle_pid_output = pitch_angle.Update(pitch - rpy_pit);
-			// roll_angle_pid_output = roll_angle.Update(roll - rpy_rol);
-			// yaw_angle_pid_output = yaw_angle.Update(yaw - rpy_yaw);
+			// pitch_angle_pid_output = pitch_angle.Update(pitch - kal_pit);
+			// roll_angle_pid_output = roll_angle.Update(roll - kal_rol);
+			// yaw_angle_pid_output = yaw_angle.Update(yaw - kal_yaw);
 
 			// pitch_angle_pid_output = constrain(pitch_angle_pid_output, -10, 10);
 			// roll_angle_pid_output = constrain(roll_angle_pid_output, -20, 20);
@@ -145,11 +157,20 @@ void motor_output() {
 			// throttle4 = throttle + roll_angle_pid_output + yaw_angle_pid_output;
 
 
+			// Serial.println(pitch);
+			// tmp = pitch - kal_pit;
+			// pitch_angle_pid_output = pitch_angle.Update(tmp);
 			pitch_angle.Compute();
+			// tmp = pitch_angle_pid_output + 0.9*GyroX; //2, 0.04, 0.9
+			// tmp = pitch_angle_pid_output + 0.8*GyroX; //1.6, 0.04, 0.8
+			tmp = pitch_angle_pid_output + 2*GyroX;//4, 0.04, 2
+			// tmp = pitch_angle_pid_output + 2.7*GyroX;
+			// tmp = pitch_angle_pid_output;
+			// pitch_gyrox.Compute();
 
-			throttle1 = throttle - pitch_angle_pid_output;
+			throttle1 = throttle - tmp;
 			throttle2 = throttle;
-			throttle3 = throttle + pitch_angle_pid_output;
+			throttle3 = throttle + tmp;
 			throttle4 = throttle;
 
 			throttle1 = constrain(throttle1, 1, MAX_SIGNAL);//start from non-zero to finish the calibration
