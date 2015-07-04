@@ -28,7 +28,9 @@ boolean rc_output = false;
 
 unsigned long serialTime; //this will help us know when to talk with processing
 extern float pitch_angle_pid_output;
+extern float roll_angle_pid_output;
 extern PID pitch_angle;
+extern PID roll_angle;
 
 
 extern int throttle1;
@@ -66,7 +68,6 @@ ISR(TIMER2_OVF_vect) {
 		count = 0;           //Resets the interrupt counter
 	}
 
-
 	TCNT2 = 130;           //Reset Timer to 130 out of 255, 255-130 = 125 counts = 125*8us = 1ms
 	TIFR2 = 0x00;          //Timer2 INT Flag Reg: Clear Timer Overflow Flag
 };
@@ -84,11 +85,9 @@ void setup()
 	pinMode(yellowled, OUTPUT);	// Set built-in LED to OUPUT mode
 	pinMode(redled, OUTPUT);	// Set built-in LED to OUPUT mode
 
-
 	digitalWrite(blueled, HIGH);
 	digitalWrite(yellowled, HIGH);
 	digitalWrite(redled, HIGH);
-
 
 	/**
 	 * Setup Timer2 to fire every 1ms
@@ -99,7 +98,6 @@ void setup()
 	TIMSK2 = 0x01;        //Timer2 INT Reg: Timer2 Overflow Interrupt Enable
 	TCCR2A = 0x00;        //Timer2 Control Reg A: Normal port operation, Wave Gen Mode normal
 	TCCR2B = 0x05;        //Timer2 Control Reg B: Timer Prmotoraler set to 128, 16MHz/128 = 125KHz = 8us per count
-
 
 	// while (Serial.available() > 0) Serial.read(); // Flush serial buffer to clean up remnants from previous run
 	// Serial.println("################ Start ################");
@@ -148,7 +146,6 @@ void setup()
 		// SPIwriteBit(0x6A, 7, true, ChipSelPin1);
 		spi_SetBits(ChipSelPin1, 0x6A, (1 << 7)); // USER_CTRL_DMP_EN
 
-
 		// Serial.println("done.");
 
 		// enable Arduino interrupt detection, this will execute dmpDataReady whenever there is an interrupt,
@@ -176,7 +173,6 @@ void setup()
 		Serial.println(")");
 	}
 
-
 	// Serial.println("############# LOOP... ##############");
 	system_time_count = 0; // Start to count the system time.
 	mpu_time_count = 0;
@@ -184,8 +180,6 @@ void setup()
 } // End of Setup
 
 void loop() {
-
-
 	// int rev, incomingByte;
 
 	// if (rev = Serial.available()) {
@@ -220,7 +214,6 @@ void loop() {
 
 	mpu_get();
 
-
 	// if (mpu_time_count >= 4) {
 	//By decreasing the time counter I can estimate the code run time. After it output 4ms(here) - the desired run time, we can comment the print code
 	// Serial.print("The MPU updating time: ");
@@ -243,14 +236,14 @@ void loop() {
 	if (millis() > serialTime)
 	{
 		// SerialReceive();
-		SerialSend();
+		// SerialSend_pit();
+		SerialSend_rol();
 		// Serial_rc();
 		// Serial_gyro();
 		// Serial_pitch();
 		// Serial2.println("testing...");
 		serialTime += 100;
 	}
-
 
 } // End of loop()
 
@@ -337,7 +330,7 @@ void SerialReceive()
 // has no problem converting strings into floats, so
 // we can just send strings.  much easier than getting
 // floats from processing to here no?
-void SerialSend()
+void SerialSend_pit()
 {
 	Serial.print("PID ");
 	Serial.print(pitch);
@@ -368,6 +361,31 @@ void SerialSend()
 	// else Serial.println("Reverse");
 }
 
+void SerialSend_rol()
+{
+	Serial.print("PID ");
+	Serial.print(roll);
+	Serial.print(" ");
+	Serial.print(kal_rol);
+	Serial.print(" ");
+	Serial.print(roll_angle_pid_output);
+	Serial.print(" ");
+	Serial.print(float(throttle2) / 1000);
+	Serial.print(" ");
+	Serial.print(float(throttle4) / 1000);
+	Serial.print(" ");
+	Serial.print(GyroY);
+	Serial.print(" ");
+	Serial.print(rpy_yaw);
+	Serial.print(" ");
+	Serial.print(roll_angle.GetKp());
+	Serial.print(" ");
+	Serial.print(roll_angle.GetKi());
+	Serial.print(" ");
+	Serial.print(roll_angle.GetKd());
+	Serial.print(" ");
+	Serial.println("END");
+}
 
 void Serial_rc() {
 

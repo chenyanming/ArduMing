@@ -30,8 +30,8 @@ extern const int MIN_SIGNAL;
 int motor_adjust_count = 2800;
 boolean motor_adjust_bit = false;
 
-float roll_angle_pid_output = 0;
 float pitch_angle_pid_output = 0;
+float roll_angle_pid_output = 0;
 float yaw_angle_pid_output = 0;
 float roll_pid_output = 0;
 float pitch_pid_output = 0;
@@ -45,6 +45,7 @@ float yaw_pid_output = 0;
 PID pitch_angle(&kal_pit, &pitch_angle_pid_output, &pitch, 4, 0.04, 0, DIRECT);
 // PID pitch_angle(&kal_pit, &pitch_angle_pid_output, &pitch, 5.9, 0.05, 0, DIRECT);
 // PID pitch_gyrox(&GyroX, &pitch_pid_output, &pitch_angle_pid_output, 0, 0.0, 0.0, DIRECT);
+PID roll_angle(&kal_rol, &roll_angle_pid_output, &roll, 4, 0.05, 0, DIRECT);
 
 float kal_pit_adjust = 0;
 float kal_rol_adjust = 0;
@@ -77,6 +78,10 @@ void motor_setup() {
 	pitch_angle.SetMode(AUTOMATIC);
 	pitch_angle.SetSampleTime(10);
 	pitch_angle.SetOutputLimits(-450, 450);
+
+	roll_angle.SetMode(AUTOMATIC);
+	roll_angle.SetSampleTime(10);
+	roll_angle.SetOutputLimits(-450, 450);
 	// pitch_gyrox.SetMode(AUTOMATIC);
 	// pitch_gyrox.SetSampleTime(10);
 	// pitch_gyrox.SetOutputLimits(-500, 500);
@@ -114,7 +119,6 @@ void motor_adjust() {
 }
 
 void motor_output() {
-	float tmp;
 	if (motor_adjust_bit == true) {
 #ifdef CALI_THRO
 		motor1.writeMicroseconds(throttle);
@@ -161,17 +165,19 @@ void motor_output() {
 			// tmp = pitch - kal_pit;
 			// pitch_angle_pid_output = pitch_angle.Update(tmp);
 			pitch_angle.Compute();
+			roll_angle.Compute();
 			// tmp = pitch_angle_pid_output + 0.9*GyroX; //2, 0.04, 0.9
 			// tmp = pitch_angle_pid_output + 0.8*GyroX; //1.6, 0.04, 0.8
-			tmp = pitch_angle_pid_output + 2*GyroX;//4, 0.04, 2
+			float tmp = pitch_angle_pid_output + 2*GyroX;//4, 0.04, 2
 			// tmp = pitch_angle_pid_output + 2.7*GyroX;
 			// tmp = pitch_angle_pid_output;
 			// pitch_gyrox.Compute();
+			float tmp1 = roll_angle_pid_output + 2.1*GyroY;//4, 0.04, 2
 
 			throttle1 = throttle - tmp;
-			throttle2 = throttle;
+			throttle2 = throttle - tmp1;
 			throttle3 = throttle + tmp;
-			throttle4 = throttle;
+			throttle4 = throttle + tmp1;
 
 			throttle1 = constrain(throttle1, 1, MAX_SIGNAL);//start from non-zero to finish the calibration
 			throttle2 = constrain(throttle2, 1, MAX_SIGNAL);//start from non-zero to finish the calibration
