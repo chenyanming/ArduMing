@@ -52,10 +52,10 @@ void motor_setup() {
 	motor3.attach(8);
 	motor4.attach(7);
 
-	// motor1.writeMicroseconds(MIN_SINGLE);
-	// motor2.writeMicroseconds(MIN_SINGLE);
-	// motor3.writeMicroseconds(MIN_SINGLE);
-	// motor4.writeMicroseconds(MIN_SINGLE);
+	motor1.writeMicroseconds(MIN_SIGNAL);
+	motor2.writeMicroseconds(MIN_SIGNAL);
+	motor3.writeMicroseconds(MIN_SIGNAL);
+	motor4.writeMicroseconds(MIN_SIGNAL);
 
 	// pitch_angle.Init(1.5, 0, 0);
 	// roll_angle.Init(0.01, 0, 0);
