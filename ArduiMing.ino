@@ -29,8 +29,10 @@ boolean rc_output = false;
 unsigned long serialTime; //this will help us know when to talk with processing
 extern float pitch_angle_pid_output;
 extern float roll_angle_pid_output;
+extern float yaw_angle_pid_output;
 extern PID pitch_angle;
 extern PID roll_angle;
+extern PID yaw_angle;
 
 
 extern int throttle1;
@@ -237,7 +239,8 @@ void loop() {
 	{
 		// SerialReceive();
 		// SerialSend_pit();
-		SerialSend_rol();
+		// SerialSend_rol();
+		SerialSend_yaw();
 		// Serial_rc();
 		// Serial_gyro();
 		// Serial_pitch();
@@ -387,6 +390,31 @@ void SerialSend_rol()
 	Serial.println("END");
 }
 
+void SerialSend_yaw()
+{
+	Serial.print("PID ");
+	Serial.print(yaw);
+	Serial.print(" ");
+	Serial.print(kal_yaw);
+	Serial.print(" ");
+	Serial.print(yaw_angle_pid_output);
+	Serial.print(" ");
+	Serial.print(float(throttle2) / 1000);
+	Serial.print(" ");
+	Serial.print(float(throttle4) / 1000);
+	Serial.print(" ");
+	Serial.print(GyroZ);
+	Serial.print(" ");
+	Serial.print(rpy_yaw);
+	Serial.print(" ");
+	Serial.print(yaw_angle.GetKp());
+	Serial.print(" ");
+	Serial.print(yaw_angle.GetKi());
+	Serial.print(" ");
+	Serial.print(yaw_angle.GetKd());
+	Serial.print(" ");
+	Serial.println("END");
+}
 void Serial_rc() {
 
 	Serial.print("Getting the remote control pitch, roll, yaw and throttle adjusting value : ");

@@ -23,8 +23,9 @@ float GyroY = 0;
 float GyroZ = 0;
 
 //Kalman
-Kalman kalmanX; 
+Kalman kalmanX;
 Kalman kalmanY;
+Kalman kalmanZ;
 uint32_t timer;
 float kal_pit = 0;
 float kal_rol = 0;
@@ -1099,6 +1100,7 @@ unsigned char dmpInitialize()
 	// Kalman init
 	kalmanX.setAngle(0);
 	kalmanY.setAngle(0);
+	kalmanZ.setAngle(0);
 	timer = micros();
 
 	return 0; // success
@@ -1204,15 +1206,18 @@ unsigned int mpu_get() {
 
 			rpy_pit = - (rpy_pit * 180 / M_PI);
 			rpy_rol = rpy_rol * 180 / M_PI;
-			rpy_yaw = rpy_yaw * 180 / M_PI;
+			kal_yaw = rpy_yaw * 180 / M_PI;
+			// kal_yaw = map(rpy_yaw, -180, 180, 0, 360);
 
 			//Kalman cal
 			double dt = (double)(micros() - timer) / 1000000;
 			timer = micros();
 			double gyroXrate = GyroX / 131.0; // Convert to deg/s
 			double gyroYrate = GyroY / 131.0; // Convert to deg/s
+			double gyroZrate = GyroZ / 131.0; // Convert to deg/s
 			kal_rol = kalmanX.getAngle(rpy_rol, gyroXrate, dt);
 			kal_pit = kalmanY.getAngle(rpy_pit, gyroYrate, dt);
+			// kal_yaw = kalmanZ.getAngle(rpy_yaw, gyroZrate, dt);
 
 // #endif
 
