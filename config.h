@@ -66,7 +66,7 @@ extern byte fifoBuffer[64];          // FIFO storage buffer (in fact only 42 use
 void rc_setup();
 int rc_adjust();
 void rc_get();
-extern float roll, pitch, throttle, yaw, ch5;
+extern float roll, pitch, throttle, yaw, ch5, max_yaw;
 
 // IMU
 extern float rpy_pit, rpy_rol, rpy_yaw, kal_pit, kal_rol, kal_yaw, GyroX, GyroY, GyroZ;

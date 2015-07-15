@@ -12,21 +12,23 @@ boolean blueled_state = true;
 #define SPI0_MOSI_PIN 51
 #define SPI0_SCK_PIN  52
 
-const int MAX_SIGNAL = 1900;
-const int MIN_SIGNAL = 1000;
-
 unsigned int toggle = 0;  //used to keep the state of the LED
 unsigned int count = 0;   //used to keep count of how many interrupts were fired
 unsigned int mpu_time_count = 0; //The MPU running time
 unsigned int rc_time_count = 0;	//The RC running time
-unsigned int system_time_count = 0;	//The System running time
+// unsigned int system_time_count = 0;	//The System running time
 
-boolean euler_output = false;
-boolean gyro_output = false;
-boolean throttle_output = false;
-boolean rc_output = false;
+// unsigned int yaw_time_count = 0;
+// unsigned char yaw_bit = 0xFF;
+// unsigned char yaw_bit1 = 0xFF;
+// boolean clockwise_bit = false;
+// boolean counterclockwise_bit = false;
+
+extern float first_kal_yaw, relative_yaw, max_yaw, kal_rc_yaw;
+volatile unsigned int min_yaw_timer = 0;
 
 unsigned long serialTime; //this will help us know when to talk with processing
+
 extern float pitch_angle_pid_output;
 extern float roll_angle_pid_output;
 extern float yaw_angle_pid_output;
@@ -48,23 +50,25 @@ extern float kal_yaw_adjust;
 ISR(TIMER2_OVF_vect) {
 	mpu_time_count++;
 	rc_time_count++;
-	system_time_count++;
+	// system_time_count++;
+	// yaw_time_count++;
+
+	//
+	// Dectect the yaw stick value when pilot release
+	//
+	if (min_yaw_timer > 0) {
+		min_yaw_timer--;
+		if (min_yaw_timer == 0) {
+			if (kal_rc_yaw == 0) {
+				if ((-10 < GyroZ) && (GyroZ < 10))
+					max_yaw = 0;
+			}
+		}
+
+	}
+
 	count++;               //Increments the interrupt counter
 	if (count >= 500) {
-
-#ifdef EULER_OUTPUT
-		euler_output = true; // output euler enable
-#endif
-#ifdef GYRO_OUTPUT
-		gyro_output = true; // output gyro enable
-#endif
-#ifdef THROTTLE_OUTPUT
-		throttle_output = true; // output euler enable
-#endif
-#ifdef RC_OUTPUT
-		rc_output = true; // output remote control enable
-#endif
-
 		// digitalWrite(27, toggle);
 		// toggle = !toggle;    //toggles the LED state
 		count = 0;           //Resets the interrupt counter
@@ -176,7 +180,7 @@ void setup()
 	}
 
 	// Serial.println("############# LOOP... ##############");
-	system_time_count = 0; // Start to count the system time.
+	// system_time_count = 0; // Start to count the system time.
 	mpu_time_count = 0;
 	rc_time_count = 0;
 } // End of Setup
@@ -224,6 +228,46 @@ void loop() {
 	// }
 
 	rc_get();
+	// if (yaw_time_count >= 80) {
+	// 	yaw_time_count = 0;
+	// 	if (yaw >= 20) {
+	// 		yaw_bit = yaw_bit << 1;
+	// 		if (yaw_bit == 0) {
+	// 			yaw_bit = 0xFF;
+	// 		}
+	// 	}
+	// 	else
+	// 		yaw_bit = (yaw_bit << 1) | 0x01;
+
+	// 	if (yaw_bit == 0xFE) {// || yaw_bit == 0xF8 || yaw_bit == 0xF0 || yaw_bit == 0xE0 || yaw_bit == 0xC0 || yaw_bit == 0x80 || yaw_bit == 0x00) {
+	// 		clockwise_bit = true;
+	// 		Serial.println(yaw_bit, HEX);
+	// 	}
+	// 	else {
+	// 		clockwise_bit = false;
+	// 		// Serial.println("failed");
+	// 	}
+
+	// 	if (yaw <= -20) {
+	// 		yaw_bit1 = yaw_bit1 << 1;
+	// 		if (yaw_bit1 == 0) {
+	// 			yaw_bit1 = 0xFF;
+	// 		}
+
+	// 	}
+	// 	else
+	// 		yaw_bit1 = (yaw_bit1 << 1) | 0x01;
+
+	// 	if (yaw_bit1 == 0xFE) {// || yaw_bit == 0xF8 || yaw_bit == 0xF0 || yaw_bit == 0xE0 || yaw_bit == 0xC0 || yaw_bit == 0x80 || yaw_bit == 0x00) {
+	// 		counterclockwise_bit = true;
+	// 		Serial.println(yaw_bit1, HEX);
+	// 	}
+	// 	else {
+	// 		counterclockwise_bit = false;
+	// 		// Serial.println("failed1");
+	// 	}
+	// }
+
 
 	if (rc_time_count >= 10) {
 		// Serial.print("The Remote Control updating time: ");
@@ -234,13 +278,13 @@ void loop() {
 		motor_output();
 	}
 
-	//send-receive with processing if it's time
+	//send-receive with matlab if it's time
 	if (millis() > serialTime)
 	{
 		// SerialReceive();
 		// SerialSend_pit();
-		// SerialSend_rol();
-		SerialSend_yaw();
+		SerialSend_rol();
+		// SerialSend_yaw();
 		// Serial_rc();
 		// Serial_gyro();
 		// Serial_pitch();
@@ -344,18 +388,18 @@ void SerialSend_pit()
 	Serial.print(" ");
 	Serial.print(float(throttle1) / 1000);
 	Serial.print(" ");
-	Serial.print(float(throttle3) / 1000);
-	Serial.print(" ");
-	Serial.print(GyroX);
-	Serial.print(" ");
-	Serial.print(rpy_yaw);
-	Serial.print(" ");
-	Serial.print(pitch_angle.GetKp());
-	Serial.print(" ");
-	Serial.print(pitch_angle.GetKi());
-	Serial.print(" ");
-	Serial.print(pitch_angle.GetKd());
-	Serial.print(" ");
+	// Serial.print(float(throttle3) / 1000);
+	// Serial.print(" ");
+	// Serial.print(GyroX);
+	// Serial.print(" ");
+	// Serial.print(rpy_yaw);
+	// Serial.print(" ");
+	// Serial.print(pitch_angle.GetKp());
+	// Serial.print(" ");
+	// Serial.print(pitch_angle.GetKi());
+	// Serial.print(" ");
+	// Serial.print(pitch_angle.GetKd());
+	// Serial.print(" ");
 	Serial.println("END");
 	// if (pitch_angle.GetMode() == AUTOMATIC) Serial.print("Automatic");
 	// else Serial.print("Manual");
@@ -375,44 +419,44 @@ void SerialSend_rol()
 	Serial.print(" ");
 	Serial.print(float(throttle2) / 1000);
 	Serial.print(" ");
-	Serial.print(float(throttle4) / 1000);
-	Serial.print(" ");
-	Serial.print(GyroY);
-	Serial.print(" ");
-	Serial.print(rpy_yaw);
-	Serial.print(" ");
-	Serial.print(roll_angle.GetKp());
-	Serial.print(" ");
-	Serial.print(roll_angle.GetKi());
-	Serial.print(" ");
-	Serial.print(roll_angle.GetKd());
-	Serial.print(" ");
+	// Serial.print(float(throttle4) / 1000);
+	// Serial.print(" ");
+	// Serial.print(GyroY);
+	// Serial.print(" ");
+	// Serial.print(rpy_yaw);
+	// Serial.print(" ");
+	// Serial.print(roll_angle.GetKp());
+	// Serial.print(" ");
+	// Serial.print(roll_angle.GetKi());
+	// Serial.print(" ");
+	// Serial.print(roll_angle.GetKd());
+	// Serial.print(" ");
 	Serial.println("END");
 }
 
 void SerialSend_yaw()
 {
 	Serial.print("PID ");
-	Serial.print(yaw);
-	Serial.print(" ");
 	Serial.print(kal_yaw);
 	Serial.print(" ");
-	Serial.print(yaw_angle_pid_output);
+	Serial.print(relative_yaw);
 	Serial.print(" ");
-	Serial.print(float(throttle2) / 1000);
+	Serial.print(max_yaw);
 	Serial.print(" ");
-	Serial.print(float(throttle4) / 1000);
+	Serial.print(kal_rc_yaw);
 	Serial.print(" ");
-	Serial.print(GyroZ);
-	Serial.print(" ");
-	Serial.print(rpy_yaw);
-	Serial.print(" ");
-	Serial.print(yaw_angle.GetKp());
-	Serial.print(" ");
-	Serial.print(yaw_angle.GetKi());
-	Serial.print(" ");
-	Serial.print(yaw_angle.GetKd());
-	Serial.print(" ");
+	// Serial.print(yaw);
+	// Serial.print(" ");
+	// Serial.print(GyroZ);
+	// Serial.print(" ");
+	// Serial.print(rpy_yaw);
+	// Serial.print(" ");
+	// Serial.print(yaw_angle.GetKp());
+	// Serial.print(" ");
+	// Serial.print(yaw_angle.GetKi());
+	// Serial.print(" ");
+	// Serial.print(yaw_angle.GetKd());
+	// Serial.print(" ");
 	Serial.println("END");
 }
 void Serial_rc() {
