@@ -26,8 +26,11 @@ unsigned int rc_time_count = 0;	//The RC running time
 
 extern float first_kal_yaw, relative_yaw, max_yaw, kal_rc_yaw;
 volatile unsigned int min_yaw_timer = 0;
+extern int round_timer;
 
 unsigned long serialTime; //this will help us know when to talk with processing
+
+unsigned char yaw_status = 0;
 
 extern float pitch_angle_pid_output;
 extern float roll_angle_pid_output;
@@ -50,18 +53,24 @@ extern float kal_yaw_adjust;
 ISR(TIMER2_OVF_vect) {
 	mpu_time_count++;
 	rc_time_count++;
-	// system_time_count++;
-	// yaw_time_count++;
 
-	//
-	// Dectect the yaw stick value when pilot release
-	//
+	/*
+	 * Dectect the yaw stick value when pilot release, and when is the real 0 point which is not detected after release the yaw stick
+	 */
 	if (min_yaw_timer > 0) {
 		min_yaw_timer--;
 		if (min_yaw_timer == 0) {
 			if (kal_rc_yaw == 0) {
-				if ((-10 < GyroZ) && (GyroZ < 10))
-					max_yaw = 0;
+				yaw_status = yaw_status << 0x01;
+			}
+			else {
+				yaw_status = (yaw_status << 1) | 0x01;
+			}
+			if ( ((yaw_status & 0x02) == 0) && ((yaw_status & 0x01) == 0))
+				max_yaw = 0;
+			if ( ((yaw_status & 0x02) == 0x02) && ((yaw_status & 0x01) == 0)) {
+				first_kal_yaw = kal_yaw;
+				max_yaw = 0;
 			}
 		}
 
@@ -210,64 +219,9 @@ void loop() {
 		return;
 	}
 
-	// wait for MPU interrupt or extra packet(s) available
-	// INFO: if there is an interrupt send from the MPU-6000 to the ATmega328P (the "Arduino" processor),
-	//       boolean variable "mpuInterrupt" will be made "true" (see explanation in void setup() )
-	// // while ((mpuInterrupt == false) && (fifoCount < packetSize))
-	// {
-	// do nothing until mpuInterrupt = true or fifoCount >= 42
-	// }
-
 	mpu_get();
 
-	// if (mpu_time_count >= 4) {
-	//By decreasing the time counter I can estimate the code run time. After it output 4ms(here) - the desired run time, we can comment the print code
-	// Serial.print("The MPU updating time: ");
-	// Serial.println(mpu_time_count);
-	// mpu_time_count = 0;
-	// }
-
 	rc_get();
-	// if (yaw_time_count >= 80) {
-	// 	yaw_time_count = 0;
-	// 	if (yaw >= 20) {
-	// 		yaw_bit = yaw_bit << 1;
-	// 		if (yaw_bit == 0) {
-	// 			yaw_bit = 0xFF;
-	// 		}
-	// 	}
-	// 	else
-	// 		yaw_bit = (yaw_bit << 1) | 0x01;
-
-	// 	if (yaw_bit == 0xFE) {// || yaw_bit == 0xF8 || yaw_bit == 0xF0 || yaw_bit == 0xE0 || yaw_bit == 0xC0 || yaw_bit == 0x80 || yaw_bit == 0x00) {
-	// 		clockwise_bit = true;
-	// 		Serial.println(yaw_bit, HEX);
-	// 	}
-	// 	else {
-	// 		clockwise_bit = false;
-	// 		// Serial.println("failed");
-	// 	}
-
-	// 	if (yaw <= -20) {
-	// 		yaw_bit1 = yaw_bit1 << 1;
-	// 		if (yaw_bit1 == 0) {
-	// 			yaw_bit1 = 0xFF;
-	// 		}
-
-	// 	}
-	// 	else
-	// 		yaw_bit1 = (yaw_bit1 << 1) | 0x01;
-
-	// 	if (yaw_bit1 == 0xFE) {// || yaw_bit == 0xF8 || yaw_bit == 0xF0 || yaw_bit == 0xE0 || yaw_bit == 0xC0 || yaw_bit == 0x80 || yaw_bit == 0x00) {
-	// 		counterclockwise_bit = true;
-	// 		Serial.println(yaw_bit1, HEX);
-	// 	}
-	// 	else {
-	// 		counterclockwise_bit = false;
-	// 		// Serial.println("failed1");
-	// 	}
-	// }
-
 
 	if (rc_time_count >= 10) {
 		// Serial.print("The Remote Control updating time: ");
@@ -283,8 +237,8 @@ void loop() {
 	{
 		// SerialReceive();
 		// SerialSend_pit();
-		SerialSend_rol();
-		// SerialSend_yaw();
+		// SerialSend_rol();
+		SerialSend_yaw();
 		// Serial_rc();
 		// Serial_gyro();
 		// Serial_pitch();
@@ -295,6 +249,7 @@ void loop() {
 } // End of loop()
 
 
+#if 0
 
 /********************************************
  * Serial Communication functions / helpers
@@ -308,7 +263,6 @@ union {                // This Data structure lets
 foo;                   // float array
 
 
-#if 0
 // getting float values from processing into the arduino
 // was no small task.  the way this program does it is
 // as follows:
@@ -373,10 +327,29 @@ void SerialReceive()
 }
 #endif
 
-// unlike our tiny microprocessor, the processing ap
-// has no problem converting strings into floats, so
-// we can just send strings.  much easier than getting
-// floats from processing to here no?
+void Serial_rc() {
+
+	Serial.print("Getting the remote control pitch, roll, yaw and throttle adjusting value : ");
+	Serial.print(pitch); Serial.print('\t');
+	Serial.print(roll); Serial.print('\t');
+	Serial.print(yaw); Serial.print('\t');
+	Serial.print(throttle); Serial.print('\t');
+	Serial.println(ch5);
+}
+
+void Serial_gyro() {
+	Serial.print("Raw gyro rotation ax, ay, az [value/deg/s]: "); Serial.print("\t\t");
+	Serial.print(GyroX); Serial.print("\t");
+	Serial.print(GyroY); Serial.print("\t");
+	Serial.println(GyroZ);
+}
+
+void Serial_pitch() {
+	Serial.print(pitch); Serial.print("\t");
+	Serial.print(rpy_pit); Serial.print("\t");
+	Serial.println(kal_pit);
+}
+
 void SerialSend_pit()
 {
 	Serial.print("PID ");
@@ -443,7 +416,7 @@ void SerialSend_yaw()
 	Serial.print(" ");
 	Serial.print(max_yaw);
 	Serial.print(" ");
-	Serial.print(kal_rc_yaw);
+	Serial.print(round_timer);
 	Serial.print(" ");
 	// Serial.print(yaw);
 	// Serial.print(" ");
@@ -458,26 +431,4 @@ void SerialSend_yaw()
 	// Serial.print(yaw_angle.GetKd());
 	// Serial.print(" ");
 	Serial.println("END");
-}
-void Serial_rc() {
-
-	Serial.print("Getting the remote control pitch, roll, yaw and throttle adjusting value : ");
-	Serial.print(pitch); Serial.print('\t');
-	Serial.print(roll); Serial.print('\t');
-	Serial.print(yaw); Serial.print('\t');
-	Serial.print(throttle); Serial.print('\t');
-	Serial.println(ch5);
-}
-
-void Serial_gyro() {
-	Serial.print("Raw gyro rotation ax, ay, az [value/deg/s]: "); Serial.print("\t\t");
-	Serial.print(GyroX); Serial.print("\t");
-	Serial.print(GyroY); Serial.print("\t");
-	Serial.println(GyroZ);
-}
-
-void Serial_pitch() {
-	Serial.print(pitch); Serial.print("\t");
-	Serial.print(rpy_pit); Serial.print("\t");
-	Serial.println(kal_pit);
 }

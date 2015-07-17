@@ -16,8 +16,8 @@ const int ROLL_MAP_MIN = -20;
 const int ROLL_MAP_MAX = 20;
 const int PITCH_MAP_MIN = -20;
 const int PITCH_MAP_MAX = 20;
-const int YAW_MAP_MIN = -100;
-const int YAW_MAP_MAX = 100;
+const int YAW_MAP_MIN = -45;
+const int YAW_MAP_MAX = 45;
 
 const int MAX_SIGNAL = 1900;
 const int MIN_SIGNAL = 1000;
@@ -77,6 +77,7 @@ ISR(TIMER5_CAPT_vect) {
 }
 
 #else
+
 /**
  * Capture all pluses
  */
@@ -121,9 +122,6 @@ int rc_adjust() {
     roll_tmp = map(results[2], ROLL_MIN, ROLL_MAX, ROLL_MAP_MIN, ROLL_MAP_MAX);
     pitch_tmp = map(results[4], PITCH_MIN, PITCH_MAX, PITCH_MAP_MIN, PITCH_MAP_MAX);
     yaw_tmp = map(results[8], YAW_MIN, YAW_MAX, YAW_MAP_MIN, YAW_MAP_MAX);
-    // roll_tmp = map(results[2], 1240, 3060, -20, 20);
-    // pitch_tmp = map(results[4], 2000, 3500, -20, 20);
-    // yaw_tmp = map(results[8], 1275, 3060, -180, 180);
     pitch_adjust = -pitch_tmp;
     roll_adjust = -roll_tmp;
     yaw_adjust = -yaw_tmp;
@@ -136,8 +134,6 @@ int rc_adjust() {
   return 0;
 }
 
-// this loop prints the number of pulses in the last second, showing min
-// and max pulse widths
 void rc_get() {
 
   if (rc_adjust_bit == true) {
@@ -145,42 +141,34 @@ void rc_get() {
     gate = 1; // enable sampling
 
 #ifdef PPM_SUM_capture
-    // Serial.println("") ;
-    // Serial.println("Durations are: ") ;
 
-    //
-    // Read Remote Control Values and store
-    //
-    // roll = map(results[2], 1240, 3060, -20, 20) + roll_adjust;
-    // pitch = map(results[4], 2000, 3500, -20, 20) + pitch_adjust;
-    // throttle = map(results[6], 1500, 2900, MIN_SIGNAL, MAX_SIGNAL);
+    /*
+     ** Read Remote Control Values and store
+     */
     roll = map(results[2], ROLL_MIN, ROLL_MAX, ROLL_MAP_MIN, ROLL_MAP_MAX) + roll_adjust;// Although the range of roll or pitch is form -180 to 180, the drone can not reach large degrees.
-    // pitch = map(results[4], PITCH_MIN, PITCH_MAX, PITCH_MAP_MIN, PITCH_MAP_MAX) + pitch_adjust;
-    pitch = results[4];
+    pitch = map(results[4], PITCH_MIN, PITCH_MAX, PITCH_MAP_MIN, PITCH_MAP_MAX) + pitch_adjust;
     throttle = map(results[6], THROTTLE_MIN, THROTTLE_MAX, MIN_SIGNAL, MAX_SIGNAL);
     throttle = constrain(throttle, MIN_SIGNAL, MAX_SIGNAL);//start from non-zero to finish the calibration
     ch5 = results[10];
     yaw = map(results[8], YAW_MIN, YAW_MAX, YAW_MAP_MIN, YAW_MAP_MAX) + yaw_adjust;
-    // yaw = constrain(yaw, YAW_MAP_MIN, YAW_MAP_MAX);
 
-    //
-    // Kalman Filter on Yaw Stick Value
-    //
+    /*
+     ** Kalman Filter on Yaw Stick Value
+     */
     double dt1 = (double)(micros() - rc_timer) / 1000000;
     rc_timer = micros();
     kal_rc_yaw  = kalman_rc_yaw.getAngle(yaw, 1, dt1);
-    // yaw = kal_rc_yaw;
 
-    //
-    // Filter out the unstable value, it is vital for later capture
-    //
+    /*
+     ** Filter out the unstable value, it is vital for later capture
+     */
     if ((kal_rc_yaw <= 5) && (kal_rc_yaw >= -5)) {
       kal_rc_yaw = 0;
     }
 
-    //
-    // Capture the maximal Yaw Stick Value
-    //
+    /*
+     ** Capture the maximal Yaw Stick Value
+     */
     yaw_bottle = kal_rc_yaw;
     if (kal_rc_yaw >= 0) {
       if (yaw_bottle > last_yaw_bottle) {
@@ -193,7 +181,6 @@ void rc_get() {
       }
     }
     else {
-      // if (kal_rc_yaw < 0) {
       if (yaw_bottle < last_yaw_bottle) {
         if (yaw_bottle < max_yaw)
           max_yaw = yaw_bottle;
@@ -206,28 +193,22 @@ void rc_get() {
 
     last_yaw_bottle = yaw_bottle;
 
-    //
-    // First capture the 0, it should between -5 and 5, then turn on the timer and delay 100ms, and detect the second time in the ISR
-    //
-    if (kal_rc_yaw == 0)
-      if (min_yaw_timer == 0) { // Before set the timer, make sure the counter is equal to zero!
-        min_yaw_timer = 100;
+    /**
+     * start the timer
+     */
+    if (min_yaw_timer == 0) { // Before set the timer, make sure the counter is equal to zero!
+      min_yaw_timer = 100;
+    }
 
-      }
+    /*
+     ** fixing small errors of signals from remote controller
+     */
+    if (abs(roll) <= 3)
+      roll = 0;
+    if (abs(pitch) <= 3)
+      pitch = 0;
 
   }
-
-
-
-  //
-  // fixing small errors of signals from remote controller
-  //
-  if (abs(roll) <= 3)
-    roll = 0;
-  if (abs(pitch) <= 3)
-    pitch = 0;
-  // if (abs(yaw) <= 5) // When release the stick, if will vibrate near the 0.
-  //   yaw = 0;
 
 #else
     if (index > 0)
@@ -248,6 +229,7 @@ void rc_get() {
 
     }
 #endif
+
   else {
     roll = 0;
     pitch = 0;

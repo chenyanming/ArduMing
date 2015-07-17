@@ -73,16 +73,9 @@ void motor_setup() {
 	motor3.writeMicroseconds(MIN_SIGNAL);
 	motor4.writeMicroseconds(MIN_SIGNAL);
 
-	// pitch_angle.Init(40, 0, 0);
-	// roll_angle.Init(0.01, 0, 0);
-	// yaw_angle.Init(0.01, 0, 0);
-	// pitch_gyro.Init(0.01, 1, 0.02);
-	// roll_gyro.Init(0.01, 0, 0);
-	// yaw_gyro.Init(0.01, 0, 0);
-
-	//
-	// turn the PID on
-	//
+	/**
+	 * turn the PID on
+	 */
 	pitch_angle.SetMode(AUTOMATIC);
 	pitch_angle.SetSampleTime(10);
 	pitch_angle.SetOutputLimits(-450, 450);
@@ -95,9 +88,6 @@ void motor_setup() {
 	yaw_angle.SetSampleTime(10);
 	yaw_angle.SetOutputLimits(-450, 450);
 
-	// pitch_gyrox.SetMode(AUTOMATIC);
-	// pitch_gyrox.SetSampleTime(10);
-	// pitch_gyrox.SetOutputLimits(-500, 500);
 }
 
 void motor_adjust() {
@@ -148,12 +138,17 @@ void motor_output() {
 			pitch_angle.Compute();
 			roll_angle.Compute();
 
-			if ((-10 < GyroZ) && (GyroZ < 10)) {
-				first_kal_yaw = kal_yaw;
-				relative_yaw = first_kal_yaw;
-			}
-			else
-				relative_yaw = first_kal_yaw + max_yaw;
+			/**
+			 * We don't need to use the yaw speed.
+			 */
+			// if ((-20 < GyroZ) && (GyroZ < 20)) {
+			// 	first_kal_yaw = kal_yaw;
+			// 	relative_yaw = first_kal_yaw;
+			// 	max_yaw = 0;
+			// }
+
+			relative_yaw = first_kal_yaw + max_yaw;
+
 
 			yaw_angle.Compute();
 			// tmp = pitch_angle_pid_output + 0.9*GyroX; //2, 0.04, 0.9
@@ -182,14 +177,14 @@ void motor_output() {
 
 		}
 		else {
-			//
-			// When the propellers does not spin, transfering the take-off yaw (kal_yaw) to the setpoint (first_kal_yaw), so that it can perfrom PID caluculation.
-			//
-			first_kal_yaw = kal_yaw; // not move, no yaw
+			/*
+			** When the propellers does not spin, transfering the take-off yaw (first_kal_yaw) to the setpoint (relative_yaw), so that it can perfrom PID caluculation.
+			*/
+			first_kal_yaw = kal_yaw; // not move, no yaw rotate
 			relative_yaw = first_kal_yaw;
-			//
-			// It has to output throttle, even if throttle < 1050, otherwise, the motor will "bibibibibibibibibi"
-			//
+			/*
+			** It has to output throttle, even if throttle < 1050, otherwise, the motor will "bibibibibibibibibi"
+			*/
 			motor1.writeMicroseconds(MIN_SIGNAL);
 			motor2.writeMicroseconds(MIN_SIGNAL);
 			motor3.writeMicroseconds(MIN_SIGNAL);
@@ -206,4 +201,4 @@ void motor_output() {
 	}
 #endif
 
-}
+	}

@@ -17,6 +17,7 @@ void dmpDataReady() {
 float rpy_rol = 0;
 float rpy_pit = 0;
 float rpy_yaw = 0;
+float last_rpy_yaw = 0;
 
 float GyroX = 0;
 float GyroY = 0;
@@ -30,6 +31,8 @@ uint32_t timer;
 float kal_pit = 0;
 float kal_rol = 0;
 float kal_yaw = 0;
+
+int round_timer = 0;
 
 /* ================================================================================================ *\
  | Default MotionApps v2.0 42-byte FIFO packet structure (each value consists of 2 bytes):          |
@@ -1206,7 +1209,7 @@ unsigned int mpu_get() {
 
 			rpy_pit = - (rpy_pit * 180 / M_PI);
 			rpy_rol = rpy_rol * 180 / M_PI;
-			kal_yaw = rpy_yaw * 180 / M_PI;
+			rpy_yaw = rpy_yaw * 180 / M_PI;
 			// kal_yaw = map(rpy_yaw, -180, 180, 0, 360);
 
 			//Kalman cal
@@ -1217,7 +1220,16 @@ unsigned int mpu_get() {
 			double gyroZrate = GyroZ / 131.0; // Convert to deg/s
 			kal_rol = kalmanX.getAngle(rpy_rol, gyroXrate, dt);
 			kal_pit = kalmanY.getAngle(rpy_pit, gyroYrate, dt);
-			// kal_yaw = kalmanZ.getAngle(rpy_yaw, gyroZrate, dt);
+
+			/**
+			 * As for yaw, I use round_timer to count how many rounds the drone turn to advoid the yaw overshoot issue.
+			 */
+			if ((last_rpy_yaw - rpy_yaw) > 300)
+				round_timer++;
+			if ((last_rpy_yaw - rpy_yaw) < -300)
+				round_timer--;
+			kal_yaw = rpy_yaw + round_timer * 360;
+			last_rpy_yaw = rpy_yaw;
 
 // #endif
 
