@@ -1,5 +1,7 @@
 cscope*
 .tags
+pid.h
+pid.cpp
 /MPUteapot/libraries/
 /MPUteapot/build-tmp/
 /MPUteapot/modes/
@@ -7,5 +9,4 @@ cscope*
 /PID_FrontEnd_v03/
 /Plot/
 /KalmanFilter/
-pid.h
-pid.cpp
+/i2cscanner/
