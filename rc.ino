@@ -1,6 +1,7 @@
 /**
  * Use input capture to detect and measure the Digital Pin 48
  * Timer5: Input Capture -> Digital Pin 48
+ * The model of Remote Control: WFT06X-A
  */
 #include "Kalman.h"
 const int ROLL_MIN = 1308;
@@ -11,6 +12,8 @@ const int YAW_MIN = 1275;
 const int YAW_MAX = 3060;
 const int THROTTLE_MIN = 1500;
 const int THROTTLE_MAX = 2900;
+const int CH6_MIN = 1210;
+const int CH6_MAX = 3242;
 
 const int ROLL_MAP_MIN = -20;
 const int ROLL_MAP_MAX = 20;
@@ -22,7 +25,10 @@ const int YAW_MAP_MAX = 45;
 const int MAX_SIGNAL = 1900;
 const int MIN_SIGNAL = 1000;
 
-float roll, pitch, throttle, yaw, ch5;
+const int CH6_MAP_MIN = 0;
+const int CH6_MAP_MAX = 2;
+
+float roll, pitch, throttle, yaw, ch5, ch6;
 float max_yaw, min_yaw, yaw_bottle, last_yaw_bottle;
 float yaw_tmp[5];
 const int inputCapturePin = 48; // input pin fixed to internal Timer
@@ -148,8 +154,10 @@ void rc_get() {
     roll = map(results[2], ROLL_MIN, ROLL_MAX, ROLL_MAP_MIN, ROLL_MAP_MAX) + roll_adjust;// Although the range of roll or pitch is form -180 to 180, the drone can not reach large degrees.
     pitch = map(results[4], PITCH_MIN, PITCH_MAX, PITCH_MAP_MIN, PITCH_MAP_MAX) + pitch_adjust;
     throttle = map(results[6], THROTTLE_MIN, THROTTLE_MAX, MIN_SIGNAL, MAX_SIGNAL);
-    throttle = constrain(throttle, MIN_SIGNAL, MAX_SIGNAL);//start from non-zero to finish the calibration
+    throttle = constrain(throttle, MIN_SIGNAL, MAX_SIGNAL);
     ch5 = results[10];
+    ch6 = mapfloat(results[12], CH6_MIN, CH6_MAX, CH6_MAP_MIN, CH6_MAP_MAX);
+    ch6 = constrain(ch6, CH6_MAP_MIN, CH6_MAP_MAX);
     yaw = map(results[8], YAW_MIN, YAW_MAX, YAW_MAP_MIN, YAW_MAP_MAX) + yaw_adjust;
 
     /*
@@ -237,4 +245,9 @@ void rc_get() {
     yaw = 0;
 
   }
+}
+
+float mapfloat(float x, float in_min, float in_max, float out_min, float out_max)
+{
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
