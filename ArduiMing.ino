@@ -16,6 +16,7 @@ unsigned int toggle = 0;  //used to keep the state of the LED
 unsigned int count = 0;   //used to keep count of how many interrupts were fired
 unsigned int mpu_time_count = 0; //The MPU running time
 unsigned int rc_time_count = 0;	//The RC running time
+unsigned int ch6_count = 0;	//The ch6 detect time
 // unsigned int system_time_count = 0;	//The System running time
 
 // unsigned int yaw_time_count = 0;
@@ -82,6 +83,13 @@ ISR(TIMER2_OVF_vect) {
 		// toggle = !toggle;    //toggles the LED state
 		count = 0;           //Resets the interrupt counter
 	}
+
+	ch6_count++
+	if (ch6_count >= 300) {
+		pitch_angle.SetTunings(ch6, 0, 0);
+		ch6_count == 0;
+	}
+
 
 	TCNT2 = 130;           //Reset Timer to 130 out of 255, 255-130 = 125 counts = 125*8us = 1ms
 	TIFR2 = 0x00;          //Timer2 INT Flag Reg: Clear Timer Overflow Flag
@@ -236,9 +244,9 @@ void loop() {
 	if (millis() > serialTime)
 	{
 		// SerialReceive();
-		// SerialSend_pit();
+		SerialSend_pit();
 		// SerialSend_rol();
-		SerialSend_yaw();
+		// SerialSend_yaw();
 		// Serial_rc();
 		// Serial_gyro();
 		// Serial_pitch();
@@ -329,12 +337,13 @@ void SerialReceive()
 
 void Serial_rc() {
 
-	Serial.print("Getting the remote control pitch, roll, yaw and throttle adjusting value : ");
+	Serial.print("Getting the remote control value : ");
 	Serial.print(pitch); Serial.print('\t');
 	Serial.print(roll); Serial.print('\t');
 	Serial.print(yaw); Serial.print('\t');
 	Serial.print(throttle); Serial.print('\t');
-	Serial.println(ch5);
+	Serial.print(ch5); Serial.print('\t');
+	Serial.println(ch6, 6); //Floats have only 6-7 decimal digits of precision. On  the Arduino, double is the same size as float. 
 }
 
 void Serial_gyro() {
@@ -359,16 +368,16 @@ void SerialSend_pit()
 	Serial.print(" ");
 	Serial.print(pitch_angle_pid_output);
 	Serial.print(" ");
-	Serial.print(float(throttle1) / 1000);
-	Serial.print(" ");
+	// Serial.print(roll);
+	// Serial.print(" ");
 	// Serial.print(float(throttle3) / 1000);
 	// Serial.print(" ");
 	// Serial.print(GyroX);
 	// Serial.print(" ");
 	// Serial.print(rpy_yaw);
 	// Serial.print(" ");
-	// Serial.print(pitch_angle.GetKp());
-	// Serial.print(" ");
+	Serial.print(pitch_angle.GetKp());
+	Serial.print(" ");
 	// Serial.print(pitch_angle.GetKi());
 	// Serial.print(" ");
 	// Serial.print(pitch_angle.GetKd());
