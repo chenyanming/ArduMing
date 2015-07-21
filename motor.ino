@@ -14,7 +14,7 @@ int tmp_count = 0;
 
 Servo motor1, motor2, motor3, motor4;
 
-extern float roll, pitch, throttle, yaw;
+extern float roll, pitch, throttle, yaw, ch6;
 extern float max_yaw;
 extern boolean euler_output;
 extern boolean throttle_output;
@@ -161,11 +161,9 @@ void motor_output() {
 			/**
 			 * X configuration
 			 */
-			float tmp = pitch_angle_pid_output + 0 * GyroX; //4, 0.04, 2
-			float tmp1 = roll_angle_pid_output + 1.90 * GyroY; //4, 0.04, 2
-			float tmp2 = yaw_angle_pid_output + 1 * GyroZ; //4, 0.04, 2
-			tmp1 = 0;
-			tmp2 = 0;
+			float tmp = pitch_angle_pid_output + 0.90 * GyroX; //4, 0.04, 2
+			float tmp1 = roll_angle_pid_output + 0.90 * GyroY; //4, 0.04, 2
+			float tmp2 = yaw_angle_pid_output + last_ch6_d * GyroZ; //4, 0.04, 2
 
 			throttle1 = throttle - tmp - tmp1 - tmp2;
 			throttle2 = throttle + tmp - tmp1 + tmp2;

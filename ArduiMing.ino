@@ -50,6 +50,9 @@ extern float kal_pit_adjust;
 extern float kal_rol_adjust;
 extern float kal_yaw_adjust;
 
+unsigned int last_ch6_p = 0;
+unsigned int last_ch6_d = 0;
+
 //Timer2 Overflow Interrupt Vector, called every 1ms
 ISR(TIMER2_OVF_vect) {
 	mpu_time_count++;
@@ -84,10 +87,17 @@ ISR(TIMER2_OVF_vect) {
 		count = 0;           //Resets the interrupt counter
 	}
 
-	ch6_count++
+	ch6_count++;
 	if (ch6_count >= 300) {
-		pitch_angle.SetTunings(ch6, 0, 0);
-		ch6_count == 0;
+		pitch_angle.SetTunings(1.84, 0.18, 0);
+		roll_angle.SetTunings(1.84, 0.18, 0);
+		yaw_angle.SetTunings(1+last_ch6_p, 0, 0);
+		if (on_ch5 == true)
+			last_ch6_p = ch6;
+		else
+			last_ch6_d = ch6;
+
+		ch6_count = 0;
 	}
 
 
@@ -244,10 +254,10 @@ void loop() {
 	if (millis() > serialTime)
 	{
 		// SerialReceive();
-		SerialSend_pit();
+		// SerialSend_pit();
 		// SerialSend_rol();
 		// SerialSend_yaw();
-		// Serial_rc();
+		Serial_rc();
 		// Serial_gyro();
 		// Serial_pitch();
 		// Serial2.println("testing...");
@@ -343,7 +353,7 @@ void Serial_rc() {
 	Serial.print(yaw); Serial.print('\t');
 	Serial.print(throttle); Serial.print('\t');
 	Serial.print(ch5); Serial.print('\t');
-	Serial.println(ch6, 6); //Floats have only 6-7 decimal digits of precision. On  the Arduino, double is the same size as float. 
+	Serial.println(ch6, 6); //Floats have only 6-7 decimal digits of precision. On  the Arduino, double is the same size as float.
 }
 
 void Serial_gyro() {
@@ -376,7 +386,7 @@ void SerialSend_pit()
 	// Serial.print(" ");
 	// Serial.print(rpy_yaw);
 	// Serial.print(" ");
-	Serial.print(pitch_angle.GetKp());
+	Serial.print(ch6);
 	Serial.print(" ");
 	// Serial.print(pitch_angle.GetKi());
 	// Serial.print(" ");
