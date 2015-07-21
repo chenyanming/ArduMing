@@ -26,9 +26,10 @@ const int MAX_SIGNAL = 1900;
 const int MIN_SIGNAL = 1000;
 
 const int CH6_MAP_MIN = 0;
-const int CH6_MAP_MAX = 2;
+const int CH6_MAP_MAX = 1;
 
 float roll, pitch, throttle, yaw, ch5, ch6;
+boolean on_ch5 = false; // suppose that the ch5 is off
 float max_yaw, min_yaw, yaw_bottle, last_yaw_bottle;
 float yaw_tmp[5];
 const int inputCapturePin = 48; // input pin fixed to internal Timer
@@ -156,6 +157,10 @@ void rc_get() {
     throttle = map(results[6], THROTTLE_MIN, THROTTLE_MAX, MIN_SIGNAL, MAX_SIGNAL);
     throttle = constrain(throttle, MIN_SIGNAL, MAX_SIGNAL);
     ch5 = results[10];
+    if (ch5 > 2000)
+      on_ch5 = true; // ch5 is on (3222)
+    else
+      on_ch5 = false; // ch5 is off (1111)
     ch6 = mapfloat(results[12], CH6_MIN, CH6_MAX, CH6_MAP_MIN, CH6_MAP_MAX);
     ch6 = constrain(ch6, CH6_MAP_MIN, CH6_MAP_MAX);
     yaw = map(results[8], YAW_MIN, YAW_MAX, YAW_MAP_MIN, YAW_MAP_MAX) + yaw_adjust;
