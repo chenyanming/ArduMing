@@ -91,11 +91,11 @@ ISR(TIMER2_OVF_vect) {
 	if (ch6_count >= 300) {
 		pitch_angle.SetTunings(1.84, 0.18, 0);
 		roll_angle.SetTunings(1.84, 0.18, 0);
-		yaw_angle.SetTunings(1+last_ch6_p, 0, 0);
-		if (on_ch5 == true)
-			last_ch6_p = ch6;
-		else
-			last_ch6_d = ch6;
+		yaw_angle.SetTunings(1 + last_ch6_p, 0.18, 0);
+		// if (on_ch5 == true)
+		last_ch6_p = ch6;
+		// else
+		// last_ch6_d = ch6;
 
 		ch6_count = 0;
 	}

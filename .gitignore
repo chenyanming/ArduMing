@@ -9,3 +9,6 @@ pid.cpp
 /PID_FrontEnd_v03/
 /Plot/
 /i2cscanner/
+/HMC5883L_raw/
+/ms5611/
+/HMC/

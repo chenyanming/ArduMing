@@ -163,7 +163,8 @@ void motor_output() {
 			 */
 			float tmp = pitch_angle_pid_output + 0.90 * GyroX; //4, 0.04, 2
 			float tmp1 = roll_angle_pid_output + 0.90 * GyroY; //4, 0.04, 2
-			float tmp2 = yaw_angle_pid_output + last_ch6_d * GyroZ; //4, 0.04, 2
+			// float tmp2 = yaw_angle_pid_output + last_ch6_d * GyroZ; //4, 0.04, 2
+			float tmp2 = yaw_angle_pid_output + 0.90 * GyroZ; //4, 0.04, 2
 
 			throttle1 = throttle - tmp - tmp1 - tmp2;
 			throttle2 = throttle + tmp - tmp1 + tmp2;
