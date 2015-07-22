@@ -1,14 +1,2 @@
 cscope*
 .tags
-pid.h
-pid.cpp
-/MPUteapot/libraries/
-/MPUteapot/build-tmp/
-/MPUteapot/modes/
-/MPUteapot/tools/
-/PID_FrontEnd_v03/
-/Plot/
-/i2cscanner/
-/HMC5883L_raw/
-/ms5611/
-/HMC/
