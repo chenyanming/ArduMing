@@ -1,14 +1,2 @@
 cscope*
 .tags
-/MPUteapot/libraries/
-/MPUteapot/build-tmp/
-/MPUteapot/modes/
-/MPUteapot/tools/
-/PID_FrontEnd_v03/
-/Plot/
-/i2cscanner/
-/matlab/
-mpu6050.ino
-PID*
-pid*
-

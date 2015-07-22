@@ -11,8 +11,7 @@
 
 Servo motor1, motor2, motor3, motor4;
 
-extern float roll, pitch, throttle, yaw;
-
+extern float throttle;
 
 void motor_setup() {
 	motor1.attach(12);
