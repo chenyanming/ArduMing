@@ -7,7 +7,6 @@
  * Digital Pin 7: motor 4
  */
 #include <Servo.h>
-#include "PID_v1.h"
 
 Servo motor1, motor2, motor3, motor4;
 
