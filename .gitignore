@@ -6,3 +6,9 @@ cscope*
 /MPUteapot/tools/
 /PID_FrontEnd_v03/
 /Plot/
+/i2cscanner/
+/matlab/
+mpu6050.ino
+PID*
+pid*
+
