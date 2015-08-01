@@ -69,6 +69,21 @@ void rc_get();
 extern float roll, pitch, throttle, yaw, ch5, ch6, max_yaw;
 extern boolean on_ch5;
 
+extern int AcceX, AcceY, AcceZ;
+extern float Ax, Ay, Az;
+
 // IMU
 extern float rpy_pit, rpy_rol, rpy_yaw, kal_pit, kal_rol, kal_yaw, GyroX, GyroY, GyroZ;
+
+// MS5611
+extern float kal_alt;
+extern unsigned char D1_timer;
+extern unsigned char D2_timer;
+unsigned long D1_Pres, D2_Temp; // store pressure and temperature value
+extern boolean turn_ready;
+extern boolean D1_ready;
+extern boolean D2_ready;
+extern float _Temperature, _Pressure, _altitude;
+// extern float _ground_temperature, _ground_pressure;
+
 #endif

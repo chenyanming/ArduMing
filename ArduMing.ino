@@ -100,6 +100,24 @@ ISR(TIMER2_OVF_vect) {
 		ch6_count = 0;
 	}
 
+	/*
+	 * Dectect the D1 and D2 adc conversation end time
+	 */
+	if (D2_timer > 0) {
+		D2_timer--;
+		if (D2_timer == 5)
+			D2_ready = true;
+		if (D2_timer == 0)
+			turn_ready = false;
+	}
+
+	if (D1_timer > 0) {
+		D1_timer--;
+		if (D1_timer == 5)
+			D1_ready = true;
+		if (D1_timer == 0)
+			turn_ready = true;
+	}
 
 	TCNT2 = 130;           //Reset Timer to 130 out of 255, 255-130 = 125 counts = 125*8us = 1ms
 	TIFR2 = 0x00;          //Timer2 INT Flag Reg: Clear Timer Overflow Flag
@@ -206,6 +224,11 @@ void setup()
 		Serial.println(")");
 	}
 
+	/**
+	 * MS5611 setup
+	 */
+	ms5611_setup();
+
 	// Serial.println("############# LOOP... ##############");
 	// system_time_count = 0; // Start to count the system time.
 	mpu_time_count = 0;
@@ -241,12 +264,25 @@ void loop() {
 
 	rc_get();
 
+	/**
+	 * MS5611 convert D1 and D2 in turn.
+	 * Each conversation need 20 mS which is determinded by D1_timer or D2_timer
+	 */
+	ms5611_convert();
+	/**
+	 * When conversation is ready, D1_ready or D2_ready would be set and start to read the ADC inside the MS5611
+	 */
+	ms5611_convert_ready();
+	/**
+	 * When MS5611 calibration is done, ms5611_adjust_bit will be set, and start to calculate the temp, press and alt.
+	 */
+	ms5611_get();
+
 	if (rc_time_count >= 10) {
-		// Serial.print("The Remote Control updating time: ");
-		// Serial.println(rc_time_count);
 		rc_time_count = 0;
 		motor_adjust();
 		rc_adjust();
+		ms5611_adjust();
 		motor_output();
 	}
 
@@ -257,9 +293,10 @@ void loop() {
 		// SerialSend_pit();
 		// SerialSend_rol();
 		// SerialSend_yaw();
-		Serial_rc();
+		// Serial_rc();
 		// Serial_gyro();
-		// Serial_pitch();
+		// Serial_accel();
+		Serial_alt();
 		// Serial2.println("testing...");
 		serialTime += 100;
 	}
@@ -449,5 +486,38 @@ void SerialSend_yaw()
 	// Serial.print(" ");
 	// Serial.print(yaw_angle.GetKd());
 	// Serial.print(" ");
+	Serial.println("END");
+}
+
+
+void Serial_accel()
+{
+	Serial.print("PID ");
+	Serial.print(AcceX);
+	Serial.print(" ");
+	Serial.print(AcceY);
+	Serial.print(" ");
+	Serial.print(AcceZ);
+	Serial.print(" ");
+	Serial.print(Ax);
+	Serial.print(" ");
+	Serial.print(Ay);
+	Serial.print(" ");
+	Serial.print(Az);
+	Serial.print(" ");
+	Serial.println("END");
+}
+
+void Serial_alt() {
+	Serial.print("BARO"); Serial.print(' ');
+	// Serial.print(kal_alt); Serial.print(' ');
+	// Serial.print(_ground_temperature); Serial.print(' ');
+	// Serial.print(_ground_pressure); Serial.print(' ');
+	Serial.print(_altitude); Serial.print(' ');
+	// Serial.print(_Temperature); Serial.print(' ');
+	// Serial.print(_Pressure); Serial.print(' ');
+	// Serial.print(Ax); Serial.print(' ');
+	// Serial.print(Ay); Serial.print(' ');
+	// Serial.print(Az); Serial.print(' ');
 	Serial.println("END");
 }
