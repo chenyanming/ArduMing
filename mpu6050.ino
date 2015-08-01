@@ -1,7 +1,6 @@
 /**
  * PE6: attachInterrupt(6, dmpDataReady, RISING); // the 0 points correctly to INT6 / PE6
  */
-#include "config.h"
 #include "Kalman.h"
 #define MPU6050_DMP_CODE_SIZE         1929    // the number of values for writing the dmpMemory[]
 #define MPU6050_DMP_CONFIG_SIZE        192    // the number of values for writing the dmpConfig[]

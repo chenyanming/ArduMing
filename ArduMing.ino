@@ -4,56 +4,44 @@
 #include <SPI.h>
 #include "config.h"
 
-boolean redled_state = true;
-boolean yellowled_state = true;
-boolean blueled_state = true;
-
+// spi
 #define SPI0_MISO_PIN 50
 #define SPI0_MOSI_PIN 51
 #define SPI0_SCK_PIN  52
+const int ChipSelPin1 = 53;
+const int ChipSelPin2 = 40;
 
+// led
+const int blueled = 25;
+const int yellowled = 26;
+const int redled = 27;
+boolean redled_state = true;
+boolean yellowled_state = true;
+boolean blueled_state = true;
 unsigned int toggle = 0;  //used to keep the state of the LED
+
+// counters in timer2
 unsigned int count = 0;   //used to keep count of how many interrupts were fired
 unsigned int mpu_time_count = 0; //The MPU running time
 unsigned int rc_time_count = 0;	//The RC running time
 unsigned int ch6_count = 0;	//The ch6 detect time
-// unsigned int system_time_count = 0;	//The System running time
 
-// unsigned int yaw_time_count = 0;
-// unsigned char yaw_bit = 0xFF;
-// unsigned char yaw_bit1 = 0xFF;
-// boolean clockwise_bit = false;
-// boolean counterclockwise_bit = false;
-
+// yaw
+unsigned char yaw_status = 0;
 extern float first_kal_yaw, relative_yaw, max_yaw, kal_rc_yaw;
 volatile unsigned int min_yaw_timer = 0;
 extern int round_timer;
 
-unsigned long serialTime; //this will help us know when to talk with processing
-
-unsigned char yaw_status = 0;
-
-extern float pitch_angle_pid_output;
-extern float roll_angle_pid_output;
-extern float yaw_angle_pid_output;
-extern PID pitch_angle;
-extern PID roll_angle;
-extern PID yaw_angle;
-
-
-extern int throttle1;
-extern int throttle2;
-extern int throttle3;
-extern int throttle4;
-
-extern float kal_pit_adjust;
-extern float kal_rol_adjust;
-extern float kal_yaw_adjust;
-
+// ch6
 unsigned int last_ch6_p = 0;
 unsigned int last_ch6_d = 0;
 
-//Timer2 Overflow Interrupt Vector, called every 1ms
+// Print
+unsigned long serialTime;
+
+/**
+ * @param {N/A} TIMER2_OVF_vect [Timer2 Overflow Interrupt Vector, called every 1ms]
+ */
 ISR(TIMER2_OVF_vect) {
 	mpu_time_count++;
 	rc_time_count++;
