@@ -95,4 +95,12 @@ extern boolean D2_ready;
 extern float _Temperature, _Pressure, _altitude;
 // extern float _ground_temperature, _ground_pressure;
 
+// HMC5883L
+boolean hmc_setup();
+void hmc_get();
+extern int mx, my, mz;
+extern float _heading;
+
+
+
 #endif

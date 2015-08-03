@@ -212,13 +212,19 @@ void setup()
 		Serial.println(")");
 	}
 
-	/**
-	 * MS5611 setup
-	 */
+	// MS5611 setup
 	ms5611_setup();
 
+	// HMC5883L setup
+	boolean hmcStatus;
+	hmcStatus = hmc_setup();
+	if (hmcStatus == false) {
+		Serial.print("HMC Initialization failed (code ");
+		Serial.print(hmcStatus);
+		Serial.println(")");
+	}
+
 	// Serial.println("############# LOOP... ##############");
-	// system_time_count = 0; // Start to count the system time.
 	mpu_time_count = 0;
 	rc_time_count = 0;
 } // End of Setup
@@ -266,6 +272,8 @@ void loop() {
 	 */
 	ms5611_get();
 
+	hmc_get();
+
 	if (rc_time_count >= 10) {
 		rc_time_count = 0;
 		motor_adjust();
@@ -284,7 +292,8 @@ void loop() {
 		// Serial_rc();
 		// Serial_gyro();
 		// Serial_accel();
-		Serial_alt();
+		// Serial_alt();
+		Serial_heading();
 		// Serial2.println("testing...");
 		serialTime += 100;
 	}
@@ -508,4 +517,14 @@ void Serial_alt() {
 	// Serial.print(Ay); Serial.print(' ');
 	// Serial.print(Az); Serial.print(' ');
 	Serial.println("END");
+}
+
+void Serial_heading() {
+	Serial.print("HMC"); Serial.print(' ');
+	Serial.print(mx); Serial.print(' ');
+	Serial.print(my); Serial.print(' ');
+	Serial.print(mz); Serial.print(' ');
+	Serial.print(_heading); Serial.print(' ');
+	Serial.println("END");
+
 }
