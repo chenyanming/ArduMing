@@ -98,7 +98,7 @@ extern float _Temperature, _Pressure, _altitude;
 // HMC5883L
 boolean hmc_setup();
 void hmc_get();
-extern int mx, my, mz;
+extern int mx, my, mz, mx_r, my_r;
 extern float _heading;
 
 

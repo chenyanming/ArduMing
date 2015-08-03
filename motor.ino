@@ -55,6 +55,7 @@ int throttle2 = 0;
 int throttle3 = 0;
 int throttle4 = 0;
 
+extern volatile unsigned int alt_hold_count;
 
 void motor_setup() {
 	motor1.attach(12);
@@ -175,6 +176,25 @@ void motor_output() {
 			throttle2 = constrain(throttle2, 1, MAX_SIGNAL);//start from non-zero to finish the calibration
 			throttle3 = constrain(throttle3, 1, MAX_SIGNAL);//start from non-zero to finish the calibration
 			throttle4 = constrain(throttle4, 1, MAX_SIGNAL);//start from non-zero to finish the calibration
+
+			if (alt_hold_count == 0) {
+				alt_hold_count = 1000;
+				if (on_ch5 == true) {
+					if (_altitude < 5) {
+						throttle1 += 20;
+						throttle2 += 20;
+						throttle3 += 20;
+						throttle4 += 20;
+					}
+					else {
+						throttle1 -= 20;
+						throttle2 -= 20;
+						throttle3 -= 20;
+						throttle4 -= 20;
+					}
+				}
+			}
+
 
 			motor1.writeMicroseconds(throttle1);
 			motor2.writeMicroseconds(throttle2);

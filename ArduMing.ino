@@ -36,6 +36,9 @@ extern int round_timer;
 unsigned int last_ch6_p = 0;
 unsigned int last_ch6_d = 0;
 
+// hold altitude
+volatile unsigned int alt_hold_count = 0;
+
 // Print
 unsigned long serialTime;
 
@@ -79,7 +82,7 @@ ISR(TIMER2_OVF_vect) {
 	if (ch6_count >= 300) {
 		pitch_angle.SetTunings(1.84, 0.18, 0);
 		roll_angle.SetTunings(1.84, 0.18, 0);
-		yaw_angle.SetTunings(1 + last_ch6_p, 0.18, 0);
+		yaw_angle.SetTunings(1 + last_ch6_p, 0, 0);
 		// if (on_ch5 == true)
 		last_ch6_p = ch6;
 		// else
@@ -105,6 +108,15 @@ ISR(TIMER2_OVF_vect) {
 			D1_ready = true;
 		if (D1_timer == 0)
 			turn_ready = true;
+	}
+
+	/**
+	 * Hover
+	 */
+	if (alt_hold_count > 0) {
+		alt_hold_count--;
+		if (alt_hold_count == 0) {
+		}
 	}
 
 	TCNT2 = 130;           //Reset Timer to 130 out of 255, 255-130 = 125 counts = 125*8us = 1ms
@@ -521,10 +533,13 @@ void Serial_alt() {
 
 void Serial_heading() {
 	Serial.print("HMC"); Serial.print(' ');
+	Serial.print(_heading); Serial.print(' ');
 	Serial.print(mx); Serial.print(' ');
 	Serial.print(my); Serial.print(' ');
 	Serial.print(mz); Serial.print(' ');
-	Serial.print(_heading); Serial.print(' ');
+	// Serial.print(kal_yaw); Serial.print(' ');
+	// Serial.print(kal_pit); Serial.print(' ');
+	// Serial.print(kal_rol); Serial.print(' ');
 	Serial.println("END");
 
 }

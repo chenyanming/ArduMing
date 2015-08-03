@@ -66,7 +66,7 @@ unsigned char HMC5883L_STATUS_READY_BIT   = 0;
 unsigned char buffer[6];
 unsigned char mode;
 
-int mx, my, mz;
+int mx, my, mz, mx_r, my_r;
 float _heading;
 
 boolean hmc_setup() {
@@ -110,7 +110,12 @@ void hmc_get() {
 
 // To calculate heading in degrees. 0 degree indicates North
 	// float _heading = atan2(my, mx);
-	_heading = atan2(my, mx);
+	mx_r = mx * cos(kal_pit) + my * sin(kal_pit) * sin(kal_rol) - mz * cos(kal_rol) * sin(kal_pit);
+	my_r = my * cos(kal_rol) + mz * sin(kal_rol);
+
+
+	_heading = atan2(my_r, mx_r);
+	// _heading = atan2(my, mx);
 	if (_heading < 0)
 		_heading += 2 * M_PI;
 	_heading = _heading * 180 / M_PI;
