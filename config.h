@@ -75,9 +75,12 @@ extern int throttle4;
 extern float pitch_angle_pid_output;
 extern float roll_angle_pid_output;
 extern float yaw_angle_pid_output;
+extern float height_baro_pid_output;
+
 extern PID pitch_angle;
 extern PID roll_angle;
 extern PID yaw_angle;
+extern PID height_baro;
 
 // MS5611
 extern void ms5611_setup();
@@ -85,15 +88,20 @@ extern void ms5611_convert();
 extern void ms5611_convert_ready();
 extern void ms5611_get();
 extern void ms5611_adjust();
+extern void ms5611_alt_average();
 extern float kal_alt;
-extern unsigned char D1_timer;
-extern unsigned char D2_timer;
+// extern volatile unsigned char D1_timer;
+// extern volatile unsigned char D2_timer;
+extern volatile unsigned char convert_timer;
+extern boolean convert_finish;
 unsigned long D1_Pres, D2_Temp; // store pressure and temperature value
-extern boolean turn_ready;
-extern boolean D1_ready;
-extern boolean D2_ready;
+// extern boolean turn_ready;
+// extern boolean D1_ready;
+// extern boolean D2_ready;
+extern boolean convert_ready;
 extern float _Temperature, _Pressure, _altitude;
 // extern float _ground_temperature, _ground_pressure;
+extern float average_altitude;
 
 // HMC5883L
 boolean hmc_setup();
@@ -101,6 +109,9 @@ void hmc_get();
 extern int mx, my, mz, mx_r, my_r;
 extern float _heading;
 
+// sonar
+void sonar_get();
+extern unsigned int _sonar_altitude;
 
 
 #endif

@@ -21,10 +21,12 @@ boolean blueled_state = true;
 unsigned int toggle = 0;  //used to keep the state of the LED
 
 // counters in timer2
-unsigned int count = 0;   //used to keep count of how many interrupts were fired
-unsigned int mpu_time_count = 0; //The MPU running time
-unsigned int rc_time_count = 0;	//The RC running time
-unsigned int ch6_count = 0;	//The ch6 detect time
+volatile unsigned int count = 0;   //used to keep count of how many interrupts were fired
+volatile unsigned int mpu_time_count = 0; //The MPU running time
+volatile unsigned int rc_time_count = 0;	//The RC running time
+volatile unsigned int ch6_count = 0;	//The ch6 detect time
+volatile unsigned int alt_average_timer = 0;
+volatile unsigned int hundred_timer = 0;
 
 // yaw
 unsigned char yaw_status = 0;
@@ -48,6 +50,8 @@ unsigned long serialTime;
 ISR(TIMER2_OVF_vect) {
 	mpu_time_count++;
 	rc_time_count++;
+	alt_average_timer++;
+	hundred_timer++;
 
 	/*
 	 * Dectect the yaw stick value when pilot release, and when is the real 0 point which is not detected after release the yaw stick
@@ -82,11 +86,11 @@ ISR(TIMER2_OVF_vect) {
 	if (ch6_count >= 300) {
 		pitch_angle.SetTunings(1.84, 0.18, 0);
 		roll_angle.SetTunings(1.84, 0.18, 0);
-		yaw_angle.SetTunings(1 + last_ch6_p, 0, 0);
-		// if (on_ch5 == true)
-		last_ch6_p = ch6;
-		// else
-		// last_ch6_d = ch6;
+		// yaw_angle.SetTunings(1 + last_ch6_p, 0, 0);
+		// last_ch6_p = ch6;
+		yaw_angle.SetTunings(2.5, 0, 0);
+
+		height_baro.SetTunings(ch6, 0, 0);
 
 		ch6_count = 0;
 	}
@@ -94,30 +98,37 @@ ISR(TIMER2_OVF_vect) {
 	/*
 	 * Dectect the D1 and D2 adc conversation end time
 	 */
-	if (D2_timer > 0) {
-		D2_timer--;
-		if (D2_timer == 5)
-			D2_ready = true;
-		if (D2_timer == 0)
-			turn_ready = false;
-	}
+	// if (D2_timer > 0) {
+	// 	D2_timer--;
+	// 	if (D2_timer == 5)
+	// 		D2_ready = true;
+	// 	if (D2_timer == 0)
+	// 		turn_ready = false;
+	// }
 
-	if (D1_timer > 0) {
-		D1_timer--;
-		if (D1_timer == 5)
-			D1_ready = true;
-		if (D1_timer == 0)
-			turn_ready = true;
+	// if (D1_timer > 0) {
+	// 	D1_timer--;
+	// 	if (D1_timer == 5)
+	// 		D1_ready = true;
+	// 	if (D1_timer == 0)
+	// 		turn_ready = true;
+	// }
+
+	if (convert_timer > 0) {
+		convert_timer--;
+		if (convert_timer == 8) {
+			convert_finish = true;
+		}
 	}
 
 	/**
 	 * Hover
 	 */
-	if (alt_hold_count > 0) {
-		alt_hold_count--;
-		if (alt_hold_count == 0) {
-		}
-	}
+	// if (alt_hold_count > 0) {
+	// 	alt_hold_count--;
+	// 	if (alt_hold_count == 0) {
+	// 	}
+	// }
 
 	TCNT2 = 130;           //Reset Timer to 130 out of 255, 255-130 = 125 counts = 125*8us = 1ms
 	TIFR2 = 0x00;          //Timer2 INT Flag Reg: Clear Timer Overflow Flag
@@ -242,6 +253,8 @@ void setup()
 } // End of Setup
 
 void loop() {
+	// long dump, dump1;
+	// dump = micros();
 	// int rev, incomingByte;
 
 	// if (rev = Serial.available()) {
@@ -266,25 +279,29 @@ void loop() {
 		return;
 	}
 
-	mpu_get();
+	mpu_get(); // Take nearly 2.4ms to run, once there is an interrupt
+	hmc_get();
 
-	rc_get();
+	rc_get(); // Take nearly 0.7ms to run, once calibration is done
 
 	/**
 	 * MS5611 convert D1 and D2 in turn.
-	 * Each conversation need 20 mS which is determinded by D1_timer or D2_timer
+	 * Each conversation need 20 mS which is determinded by convert_timer
 	 */
 	ms5611_convert();
-	/**
-	 * When conversation is ready, D1_ready or D2_ready would be set and start to read the ADC inside the MS5611
-	 */
-	ms5611_convert_ready();
 	/**
 	 * When MS5611 calibration is done, ms5611_adjust_bit will be set, and start to calculate the temp, press and alt.
 	 */
 	ms5611_get();
 
-	hmc_get();
+
+	// sonar_get();
+
+	if (alt_average_timer >= 30) {
+		alt_average_timer = 0;
+		ms5611_alt_average();
+	}
+
 
 	if (rc_time_count >= 10) {
 		rc_time_count = 0;
@@ -294,9 +311,8 @@ void loop() {
 		motor_output();
 	}
 
-	//send-receive with matlab if it's time
-	if (millis() > serialTime)
-	{
+	if (hundred_timer >= 100) {
+		hundred_timer = 0;
 		// SerialReceive();
 		// SerialSend_pit();
 		// SerialSend_rol();
@@ -304,12 +320,29 @@ void loop() {
 		// Serial_rc();
 		// Serial_gyro();
 		// Serial_accel();
-		// Serial_alt();
-		Serial_heading();
+		Serial_alt();
+		// Serial_heading();
 		// Serial2.println("testing...");
-		serialTime += 100;
 	}
 
+	//send-receive with matlab if it's time
+	// if (millis() > serialTime)
+	// {
+	// SerialReceive();
+	// SerialSend_pit();
+	// SerialSend_rol();
+	// SerialSend_yaw();
+	// Serial_rc();
+	// Serial_gyro();
+	// Serial_accel();
+	// Serial_alt();
+	// Serial_heading();
+	// Serial2.println("testing...");
+	// serialTime += 100;
+	// }
+
+	// dump1 = micros();
+	// Serial.println(dump1 - dump);
 } // End of loop()
 
 
@@ -519,27 +552,21 @@ void Serial_accel()
 
 void Serial_alt() {
 	Serial.print("BARO"); Serial.print(' ');
-	// Serial.print(kal_alt); Serial.print(' ');
-	// Serial.print(_ground_temperature); Serial.print(' ');
-	// Serial.print(_ground_pressure); Serial.print(' ');
-	Serial.print(_altitude); Serial.print(' ');
-	// Serial.print(_Temperature); Serial.print(' ');
-	// Serial.print(_Pressure); Serial.print(' ');
-	// Serial.print(Ax); Serial.print(' ');
-	// Serial.print(Ay); Serial.print(' ');
-	// Serial.print(Az); Serial.print(' ');
+	Serial.print(throttle1); Serial.print(' ');
+	Serial.print(on_ch5); Serial.print(' ');
+	Serial.print(ch6); Serial.print(' ');
+	Serial.print(average_altitude); Serial.print(' ');
+	// Serial.print(height_baro_pid_output); Serial.print(' ');
+	Serial.print(_sonar_altitude); Serial.print(' ');
 	Serial.println("END");
 }
 
 void Serial_heading() {
 	Serial.print("HMC"); Serial.print(' ');
+	Serial.print(kal_pit); Serial.print(' ');
+	Serial.print(kal_rol); Serial.print(' ');
+	Serial.print(kal_yaw); Serial.print(' ');
 	Serial.print(_heading); Serial.print(' ');
-	Serial.print(mx); Serial.print(' ');
-	Serial.print(my); Serial.print(' ');
-	Serial.print(mz); Serial.print(' ');
-	// Serial.print(kal_yaw); Serial.print(' ');
-	// Serial.print(kal_pit); Serial.print(' ');
-	// Serial.print(kal_rol); Serial.print(' ');
 	Serial.println("END");
 
 }

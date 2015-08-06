@@ -40,11 +40,16 @@ float yaw_angle_pid_output = 0;
 float roll_pid_output = 0;
 float pitch_pid_output = 0;
 float yaw_pid_output = 0;
+
+float height_baro_pid_output = 0;
+float lock_average_altitude;
 // Pid roll_angle, pitch_angle, yaw_angle, roll_gyro, pitch_gyro, yaw_gyro;
 
 PID pitch_angle(&kal_pit, &pitch_angle_pid_output, &pitch, 4, 0.04, 0, DIRECT);
 PID roll_angle(&kal_rol, &roll_angle_pid_output, &roll, 4, 0.05, 0, DIRECT);
 PID yaw_angle(&kal_yaw, &yaw_angle_pid_output, &relative_yaw, 2, 0.05, 0, DIRECT);
+PID height_baro(&average_altitude, &height_baro_pid_output, &lock_average_altitude, 0, 0, 0, DIRECT);
+// PID height_baro(&average_altitude, &height_baro_pid_output, &throttle, 0, 0, 0, DIRECT);
 
 float kal_pit_adjust = 0;
 float kal_rol_adjust = 0;
@@ -83,6 +88,9 @@ void motor_setup() {
 	yaw_angle.SetSampleTime(10);
 	yaw_angle.SetOutputLimits(-450, 450);
 
+	height_baro.SetMode(AUTOMATIC);
+	height_baro.SetSampleTime(300);
+	height_baro.SetOutputLimits(-450, 450);
 }
 
 void motor_adjust() {
@@ -167,33 +175,30 @@ void motor_output() {
 			// float tmp2 = yaw_angle_pid_output + last_ch6_d * GyroZ; //4, 0.04, 2
 			float tmp2 = yaw_angle_pid_output + 0.90 * GyroZ; //4, 0.04, 2
 
-			throttle1 = throttle - tmp - tmp1 - tmp2;
-			throttle2 = throttle + tmp - tmp1 + tmp2;
-			throttle3 = throttle + tmp + tmp1 - tmp2;
-			throttle4 = throttle - tmp + tmp1 + tmp2;
+			if (on_ch5 == true) {
+				// throttle = map(throttle, 1050, 1900, 1, 15);
+				height_baro.Compute();
+				float tmp3 = height_baro_pid_output;// + 0.90 * Az;
+				throttle1 = throttle - tmp - tmp1 - tmp2 + tmp3;
+				throttle2 = throttle + tmp - tmp1 + tmp2 + tmp3;
+				throttle3 = throttle + tmp + tmp1 - tmp2 + tmp3;
+				throttle4 = throttle - tmp + tmp1 + tmp2 + tmp3;
+			}
+			else {
+
+				throttle1 = throttle - tmp - tmp1 - tmp2;
+				throttle2 = throttle + tmp - tmp1 + tmp2;
+				throttle3 = throttle + tmp + tmp1 - tmp2;
+				throttle4 = throttle - tmp + tmp1 + tmp2;
+
+				lock_average_altitude = average_altitude;
+			}
 
 			throttle1 = constrain(throttle1, 1, MAX_SIGNAL);//start from non-zero to finish the calibration
 			throttle2 = constrain(throttle2, 1, MAX_SIGNAL);//start from non-zero to finish the calibration
 			throttle3 = constrain(throttle3, 1, MAX_SIGNAL);//start from non-zero to finish the calibration
 			throttle4 = constrain(throttle4, 1, MAX_SIGNAL);//start from non-zero to finish the calibration
 
-			if (alt_hold_count == 0) {
-				alt_hold_count = 1000;
-				if (on_ch5 == true) {
-					if (_altitude < 5) {
-						throttle1 += 20;
-						throttle2 += 20;
-						throttle3 += 20;
-						throttle4 += 20;
-					}
-					else {
-						throttle1 -= 20;
-						throttle2 -= 20;
-						throttle3 -= 20;
-						throttle4 -= 20;
-					}
-				}
-			}
 
 
 			motor1.writeMicroseconds(throttle1);

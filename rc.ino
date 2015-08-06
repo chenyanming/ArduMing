@@ -26,7 +26,7 @@ const int MAX_SIGNAL = 1900;
 const int MIN_SIGNAL = 1000;
 
 const int CH6_MAP_MIN = 0;
-const int CH6_MAP_MAX = 1;
+const int CH6_MAP_MAX = 20;
 
 float roll, pitch, throttle, yaw, ch5, ch6;
 boolean on_ch5 = false; // suppose that the ch5 is off

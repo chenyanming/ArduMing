@@ -28,11 +28,16 @@ unsigned char ms5611_adjust_bits = 0;
 boolean ms5611_adjust_bit = false;
 
 // ms5611 convert
-unsigned char D1_timer = 0;
-unsigned char D2_timer = 0;
-boolean D1_ready = false;
-boolean D2_ready = false;
-boolean turn_ready = true;
+// volatile unsigned char D1_timer = 0;
+// volatile unsigned char D2_timer = 0;
+// boolean D1_ready = false;
+// boolean D2_ready = false;
+// boolean turn_ready = true;
+volatile unsigned char convert_timer = 0;
+boolean convert_ready = false;
+boolean convert_finish = false;
+boolean convert_toggle = false;
+boolean convert_ready_toggle = false;
 
 // Kalman
 // Kalman kalmanH;
@@ -40,6 +45,10 @@ boolean turn_ready = true;
 // float kal_alt = 0;
 // extern float Az;
 
+// ms5611 average alt
+unsigned char alt_average_count = 0;
+float average_altitude = 0; 
+float tmp_altitude[10];
 
 void ms5611_setup() {
 	// Serial.begin(115200);	// Set the baud rate to 115200
@@ -179,7 +188,7 @@ float ms5611_get_temperature() {
 	// Temperature = 2000 + dT * ((unsigned long)C6) / 8388608;
 	_Temperature = (dT * C6) / 8388608;
 	// callers want the temperature in 0.1C units
-	_Temperature = _Temperature/10;
+	_Temperature = _Temperature / 10;
 	return _Temperature;
 }
 
@@ -231,34 +240,32 @@ float ms5611_get_altitude()
 }
 
 void ms5611_convert() {
-	// ms5611_convert_temperature();
-	// ms5611_convert_pressure();
 
-	if (turn_ready == true) {
-		if (D2_timer == 0) { // Before set the timer, make sure the counter is equal to zero!
-			ms5611_spi_write(ChipSelPin2, CMD_CONVERT_D2_OSR4096);
-			D2_timer = 20; // must set timer after ms5611_spi_write in case of the interrupt
+	if (convert_ready == true) {
+		if (convert_finish == true) { // can not use convert_timer to detect directly, because it is volatile. We may not detect it.
+			convert_ready_toggle = !convert_ready_toggle;
+			if (convert_ready_toggle == true)
+				D2_Temp = ms5611_spi_read_adc(ChipSelPin2);
+			else
+				D1_Pres = ms5611_spi_read_adc(ChipSelPin2);
+			convert_finish = false;
+			convert_ready = false;
 		}
 	}
 	else {
-		if (D1_timer == 0) { // Before set the timer, make sure the counter is equal to zero!
-			ms5611_spi_write(ChipSelPin2, CMD_CONVERT_D1_OSR4096);
-			D1_timer = 20; // must set timer after ms5611_spi_write in case of the interrupt
+		if (convert_timer == 0) { // we can detect the zero value, because when timer decrease to 0, it can not change
+			convert_toggle = !convert_toggle;
+			if (convert_toggle == true)
+				ms5611_spi_write(ChipSelPin2, CMD_CONVERT_D2_OSR4096);
+			else
+				ms5611_spi_write(ChipSelPin2, CMD_CONVERT_D1_OSR4096);
+			convert_timer = 20;
+			convert_ready = true;
 		}
 	}
+
 }
 
-void ms5611_convert_ready() {
-	if (D1_ready == true) {
-		D1_ready = false;
-		D1_Pres = ms5611_spi_read_adc(ChipSelPin2);
-	}
-
-	if (D2_ready == true) {
-		D2_ready = false;
-		D2_Temp = ms5611_spi_read_adc(ChipSelPin2);
-	}
-}
 
 void ms5611_get() {
 	float temp, pressure, altitude;
@@ -282,6 +289,19 @@ void ms5611_get() {
 
 }
 
+void ms5611_alt_average() {
+	if (alt_average_count < 10) {
+		tmp_altitude[alt_average_count] = _altitude;
+		alt_average_count++;
+	}
+	if (alt_average_count == 9) {
+		alt_average_count = 0;
+		for (int i = 0; i < 10; i++) {
+			average_altitude += tmp_altitude[i];
+		}
+		average_altitude /= 10;
+	}
+}
 
 
 
