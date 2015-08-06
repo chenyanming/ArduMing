@@ -4,55 +4,54 @@
 #include <SPI.h>
 #include "config.h"
 
-boolean redled_state = true;
-boolean yellowled_state = true;
-boolean blueled_state = true;
-
+// spi
 #define SPI0_MISO_PIN 50
 #define SPI0_MOSI_PIN 51
 #define SPI0_SCK_PIN  52
+const int ChipSelPin1 = 53;
+const int ChipSelPin2 = 40;
 
+// led
+const int blueled = 25;
+const int yellowled = 26;
+const int redled = 27;
+boolean redled_state = true;
+boolean yellowled_state = true;
+boolean blueled_state = true;
 unsigned int toggle = 0;  //used to keep the state of the LED
-unsigned int count = 0;   //used to keep count of how many interrupts were fired
-unsigned int mpu_time_count = 0; //The MPU running time
-unsigned int rc_time_count = 0;	//The RC running time
-// unsigned int system_time_count = 0;	//The System running time
 
-// unsigned int yaw_time_count = 0;
-// unsigned char yaw_bit = 0xFF;
-// unsigned char yaw_bit1 = 0xFF;
-// boolean clockwise_bit = false;
-// boolean counterclockwise_bit = false;
+// counters in timer2
+volatile unsigned int count = 0;   //used to keep count of how many interrupts were fired
+volatile unsigned int mpu_time_count = 0; //The MPU running time
+volatile unsigned int rc_time_count = 0;	//The RC running time
+volatile unsigned int ch6_count = 0;	//The ch6 detect time
+volatile unsigned int alt_average_timer = 0;
+volatile unsigned int hundred_timer = 0;
 
+// yaw
+unsigned char yaw_status = 0;
 extern float first_kal_yaw, relative_yaw, max_yaw, kal_rc_yaw;
 volatile unsigned int min_yaw_timer = 0;
 extern int round_timer;
 
-unsigned long serialTime; //this will help us know when to talk with processing
+// ch6
+unsigned int last_ch6_p = 0;
+unsigned int last_ch6_d = 0;
 
-unsigned char yaw_status = 0;
+// hold altitude
+volatile unsigned int alt_hold_count = 0;
 
-extern float pitch_angle_pid_output;
-extern float roll_angle_pid_output;
-extern float yaw_angle_pid_output;
-extern PID pitch_angle;
-extern PID roll_angle;
-extern PID yaw_angle;
+// Print
+unsigned long serialTime;
 
-
-extern int throttle1;
-extern int throttle2;
-extern int throttle3;
-extern int throttle4;
-
-extern float kal_pit_adjust;
-extern float kal_rol_adjust;
-extern float kal_yaw_adjust;
-
-//Timer2 Overflow Interrupt Vector, called every 1ms
+/**
+ * @param {N/A} TIMER2_OVF_vect [Timer2 Overflow Interrupt Vector, called every 1ms]
+ */
 ISR(TIMER2_OVF_vect) {
 	mpu_time_count++;
 	rc_time_count++;
+	alt_average_timer++;
+	hundred_timer++;
 
 	/*
 	 * Dectect the yaw stick value when pilot release, and when is the real 0 point which is not detected after release the yaw stick
@@ -82,6 +81,54 @@ ISR(TIMER2_OVF_vect) {
 		// toggle = !toggle;    //toggles the LED state
 		count = 0;           //Resets the interrupt counter
 	}
+
+	ch6_count++;
+	if (ch6_count >= 300) {
+		pitch_angle.SetTunings(1.84, 0.18, 0);
+		roll_angle.SetTunings(1.84, 0.18, 0);
+		// yaw_angle.SetTunings(1 + last_ch6_p, 0, 0);
+		// last_ch6_p = ch6;
+		yaw_angle.SetTunings(2.5, 0, 0);
+
+		height_baro.SetTunings(ch6, 0, 0);
+
+		ch6_count = 0;
+	}
+
+	/*
+	 * Dectect the D1 and D2 adc conversation end time
+	 */
+	// if (D2_timer > 0) {
+	// 	D2_timer--;
+	// 	if (D2_timer == 5)
+	// 		D2_ready = true;
+	// 	if (D2_timer == 0)
+	// 		turn_ready = false;
+	// }
+
+	// if (D1_timer > 0) {
+	// 	D1_timer--;
+	// 	if (D1_timer == 5)
+	// 		D1_ready = true;
+	// 	if (D1_timer == 0)
+	// 		turn_ready = true;
+	// }
+
+	if (convert_timer > 0) {
+		convert_timer--;
+		if (convert_timer == 8) {
+			convert_finish = true;
+		}
+	}
+
+	/**
+	 * Hover
+	 */
+	// if (alt_hold_count > 0) {
+	// 	alt_hold_count--;
+	// 	if (alt_hold_count == 0) {
+	// 	}
+	// }
 
 	TCNT2 = 130;           //Reset Timer to 130 out of 255, 255-130 = 125 counts = 125*8us = 1ms
 	TIFR2 = 0x00;          //Timer2 INT Flag Reg: Clear Timer Overflow Flag
@@ -188,13 +235,26 @@ void setup()
 		Serial.println(")");
 	}
 
+	// MS5611 setup
+	ms5611_setup();
+
+	// HMC5883L setup
+	boolean hmcStatus;
+	hmcStatus = hmc_setup();
+	if (hmcStatus == false) {
+		Serial.print("HMC Initialization failed (code ");
+		Serial.print(hmcStatus);
+		Serial.println(")");
+	}
+
 	// Serial.println("############# LOOP... ##############");
-	// system_time_count = 0; // Start to count the system time.
 	mpu_time_count = 0;
 	rc_time_count = 0;
 } // End of Setup
 
 void loop() {
+	// long dump, dump1;
+	// dump = micros();
 	// int rev, incomingByte;
 
 	// if (rev = Serial.available()) {
@@ -219,33 +279,70 @@ void loop() {
 		return;
 	}
 
-	mpu_get();
+	mpu_get(); // Take nearly 2.4ms to run, once there is an interrupt
+	hmc_get();
 
-	rc_get();
+	rc_get(); // Take nearly 0.7ms to run, once calibration is done
+
+	/**
+	 * MS5611 convert D1 and D2 in turn.
+	 * Each conversation need 20 mS which is determinded by convert_timer
+	 */
+	ms5611_convert();
+	/**
+	 * When MS5611 calibration is done, ms5611_adjust_bit will be set, and start to calculate the temp, press and alt.
+	 */
+	ms5611_get();
+
+
+	// sonar_get();
+
+	if (alt_average_timer >= 30) {
+		alt_average_timer = 0;
+		ms5611_alt_average();
+	}
+
 
 	if (rc_time_count >= 10) {
-		// Serial.print("The Remote Control updating time: ");
-		// Serial.println(rc_time_count);
 		rc_time_count = 0;
 		motor_adjust();
 		rc_adjust();
+		ms5611_adjust();
 		motor_output();
 	}
 
-	//send-receive with matlab if it's time
-	if (millis() > serialTime)
-	{
+	if (hundred_timer >= 100) {
+		hundred_timer = 0;
 		// SerialReceive();
 		// SerialSend_pit();
 		// SerialSend_rol();
-		SerialSend_yaw();
+		// SerialSend_yaw();
 		// Serial_rc();
 		// Serial_gyro();
-		// Serial_pitch();
+		// Serial_accel();
+		Serial_alt();
+		// Serial_heading();
 		// Serial2.println("testing...");
-		serialTime += 100;
 	}
 
+	//send-receive with matlab if it's time
+	// if (millis() > serialTime)
+	// {
+	// SerialReceive();
+	// SerialSend_pit();
+	// SerialSend_rol();
+	// SerialSend_yaw();
+	// Serial_rc();
+	// Serial_gyro();
+	// Serial_accel();
+	// Serial_alt();
+	// Serial_heading();
+	// Serial2.println("testing...");
+	// serialTime += 100;
+	// }
+
+	// dump1 = micros();
+	// Serial.println(dump1 - dump);
 } // End of loop()
 
 
@@ -329,12 +426,13 @@ void SerialReceive()
 
 void Serial_rc() {
 
-	Serial.print("Getting the remote control pitch, roll, yaw and throttle adjusting value : ");
+	Serial.print("Getting the remote control value : ");
 	Serial.print(pitch); Serial.print('\t');
 	Serial.print(roll); Serial.print('\t');
 	Serial.print(yaw); Serial.print('\t');
 	Serial.print(throttle); Serial.print('\t');
-	Serial.println(ch5);
+	Serial.print(ch5); Serial.print('\t');
+	Serial.println(ch6, 6); //Floats have only 6-7 decimal digits of precision. On  the Arduino, double is the same size as float.
 }
 
 void Serial_gyro() {
@@ -359,16 +457,16 @@ void SerialSend_pit()
 	Serial.print(" ");
 	Serial.print(pitch_angle_pid_output);
 	Serial.print(" ");
-	Serial.print(float(throttle1) / 1000);
-	Serial.print(" ");
+	// Serial.print(roll);
+	// Serial.print(" ");
 	// Serial.print(float(throttle3) / 1000);
 	// Serial.print(" ");
 	// Serial.print(GyroX);
 	// Serial.print(" ");
 	// Serial.print(rpy_yaw);
 	// Serial.print(" ");
-	// Serial.print(pitch_angle.GetKp());
-	// Serial.print(" ");
+	Serial.print(ch6);
+	Serial.print(" ");
 	// Serial.print(pitch_angle.GetKi());
 	// Serial.print(" ");
 	// Serial.print(pitch_angle.GetKd());
@@ -431,4 +529,44 @@ void SerialSend_yaw()
 	// Serial.print(yaw_angle.GetKd());
 	// Serial.print(" ");
 	Serial.println("END");
+}
+
+
+void Serial_accel()
+{
+	Serial.print("PID ");
+	Serial.print(AcceX);
+	Serial.print(" ");
+	Serial.print(AcceY);
+	Serial.print(" ");
+	Serial.print(AcceZ);
+	Serial.print(" ");
+	Serial.print(Ax);
+	Serial.print(" ");
+	Serial.print(Ay);
+	Serial.print(" ");
+	Serial.print(Az);
+	Serial.print(" ");
+	Serial.println("END");
+}
+
+void Serial_alt() {
+	Serial.print("BARO"); Serial.print(' ');
+	Serial.print(throttle1); Serial.print(' ');
+	Serial.print(on_ch5); Serial.print(' ');
+	Serial.print(ch6); Serial.print(' ');
+	Serial.print(average_altitude); Serial.print(' ');
+	// Serial.print(height_baro_pid_output); Serial.print(' ');
+	Serial.print(_sonar_altitude); Serial.print(' ');
+	Serial.println("END");
+}
+
+void Serial_heading() {
+	Serial.print("HMC"); Serial.print(' ');
+	Serial.print(kal_pit); Serial.print(' ');
+	Serial.print(kal_rol); Serial.print(' ');
+	Serial.print(kal_yaw); Serial.print(' ');
+	Serial.print(_heading); Serial.print(' ');
+	Serial.println("END");
+
 }

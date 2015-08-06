@@ -1,7 +1,6 @@
 /**
  * PE6: attachInterrupt(6, dmpDataReady, RISING); // the 0 points correctly to INT6 / PE6
  */
-#include "config.h"
 #include "Kalman.h"
 #define MPU6050_DMP_CODE_SIZE         1929    // the number of values for writing the dmpMemory[]
 #define MPU6050_DMP_CONFIG_SIZE        192    // the number of values for writing the dmpConfig[]
@@ -33,6 +32,13 @@ float kal_rol = 0;
 float kal_yaw = 0;
 
 int round_timer = 0;
+
+int AcceX = 0; 
+int AcceY = 0;
+int AcceZ = 0;
+float Ax = 0;
+float Ay = 0;
+float Az = 0;
 
 /* ================================================================================================ *\
  | Default MotionApps v2.0 42-byte FIFO packet structure (each value consists of 2 bytes):          |
@@ -1233,7 +1239,6 @@ unsigned int mpu_get() {
 
 // #endif
 
-#if 0
 #ifdef OUTPUT_RAW_ACCEL
 			// print accelerometer values from fifoBuffer
 			int AcceX = ((fifoBuffer[28] << 8) + fifoBuffer[29]);
@@ -1245,20 +1250,21 @@ unsigned int mpu_get() {
 			Serial.println(AcceZ);
 #endif
 
-#ifdef OUTPUT_RAW_ACCEL_G
+// #ifdef OUTPUT_RAW_ACCEL_G
 			// same as OUTPUT_RAW_ACCEL but recalculated to g-force values
-			int AcceX = ((fifoBuffer[28] << 8) + fifoBuffer[29]);
-			int AcceY = ((fifoBuffer[32] << 8) + fifoBuffer[33]);
-			int AcceZ = ((fifoBuffer[36] << 8) + fifoBuffer[37]);
-			float Ax = AcceX / 8192.0f; // calculate g-value
-			float Ay = AcceY / 8192.0f; // calculate g-value
-			float Az = AcceZ / 8192.0f; // calculate g-value
-			Serial.print("Raw acceleration ax, ay, az [g]: "); Serial.print("\t\t\t");
-			Serial.print  (Ax, 3); Serial.print("\t");
-			Serial.print  (Ay, 3); Serial.print("\t");
-			Serial.println(Az, 3);
-#endif
+			AcceX = ((fifoBuffer[28] << 8) + fifoBuffer[29]);
+			AcceY = ((fifoBuffer[32] << 8) + fifoBuffer[33]);
+			AcceZ = ((fifoBuffer[36] << 8) + fifoBuffer[37]);
+			Ax = AcceX / 8192.0f; // calculate g-value
+			Ay = AcceY / 8192.0f; // calculate g-value
+			Az = AcceZ / 8192.0f; // calculate g-value
+			// Serial.print("Raw acceleration ax, ay, az [g]: "); Serial.print("\t\t\t");
+			// Serial.print  (Ax, 3); Serial.print("\t");
+			// Serial.print  (Ay, 3); Serial.print("\t");
+			// Serial.println(Az, 3);
+// #endif
 
+#if 0
 #ifdef OUTPUT_RAW_ANGLES
 			// print calculated angles for roll and pitch from the raw acceleration components
 			// (yaw is undetermined here, this needs the use of the quaternion - see further on)
