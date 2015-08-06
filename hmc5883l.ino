@@ -97,6 +97,8 @@ boolean hmc_setup() {
 }
 
 void hmc_get() {
+
+
 // void loop() {
 	// read raw heading measurements from device
 	hmc_getHeading(&mx, &my, &mz);
@@ -110,14 +112,29 @@ void hmc_get() {
 
 // To calculate heading in degrees. 0 degree indicates North
 	// float _heading = atan2(my, mx);
-	mx_r = mx * cos(kal_pit) + my * sin(kal_pit) * sin(kal_rol) - mz * cos(kal_rol) * sin(kal_pit);
-	my_r = my * cos(kal_rol) + mz * sin(kal_rol);
 
+	float my_offset = (699 - 403) / 2;
+	float mx_offset = (514 - 518) / 2;
+	float mz_offset = (389 - 588) / 2;
 
-	_heading = atan2(my_r, mx_r);
-	// _heading = atan2(my, mx);
+	mx = mx - mx_offset;
+	my = my - my_offset;
+	mz = mz - mz_offset;
+
+	// float mx_adj = mx * cos(abs(kal_pit) / 180 * PI) + mz * sin(abs(kal_pit) / 180 * PI);
+	// float my_adj = my * cos(abs(kal_rol) / 180 * PI) + mx * sin(abs(kal_pit) / 180 * PI) * sin(abs(kal_rol) / 180 * PI) - mz * cos(abs(kal_pit) / 180 * PI) * sin(abs(kal_rol) / 180 * PI);
+
+	float mx_adj = mx * cos(kal_pit / 180 * PI) + mz * sin(kal_pit / 180 * PI);
+	float my_adj = my * cos(kal_rol / 180 * PI) + mx * sin(kal_pit / 180 * PI) * sin(kal_rol / 180 * PI) - mz * cos(kal_pit / 180 * PI) * sin(kal_rol / 180 * PI);
+
+	_heading = atan2(my_adj, mx_adj);
 	if (_heading < 0)
 		_heading += 2 * M_PI;
+
+	// _heading = atan2(my_r, mx_r);
+	// _heading = atan2(my, mx);
+	// if (_heading < 0)
+	// _heading += 2 * M_PI;
 	_heading = _heading * 180 / M_PI;
 	// Serial.print("heading:\t");
 	// Serial.println(heading * 180 / M_PI);
