@@ -27,6 +27,7 @@ volatile unsigned int rc_time_count = 0;	//The RC running time
 volatile unsigned int ch6_count = 0;	//The ch6 detect time
 volatile unsigned int alt_average_timer = 0;
 volatile unsigned int hundred_timer = 0;
+volatile unsigned int alt_mode_timer = 0;
 
 // yaw
 unsigned char yaw_status = 0;
@@ -44,6 +45,17 @@ volatile unsigned int alt_hold_count = 0;
 // Print
 unsigned long serialTime;
 
+// Serial2
+unsigned char serial2_rev_buf[50];
+unsigned char rev_i = 0, rev_j = 0, comma = 0;
+boolean rev_unhealthy = false;
+unsigned char FL_tmp[4];
+unsigned char BL_tmp[4];
+unsigned char FR_tmp[4];
+unsigned char BR_tmp[4];
+unsigned int FL = 0, BL = 0, FR = 0, BR = 0;
+
+
 /**
  * @param {N/A} TIMER2_OVF_vect [Timer2 Overflow Interrupt Vector, called every 1ms]
  */
@@ -52,6 +64,7 @@ ISR(TIMER2_OVF_vect) {
 	rc_time_count++;
 	alt_average_timer++;
 	hundred_timer++;
+	alt_mode_timer++;
 
 	/*
 	 * Dectect the yaw stick value when pilot release, and when is the real 0 point which is not detected after release the yaw stick
@@ -90,7 +103,9 @@ ISR(TIMER2_OVF_vect) {
 		// last_ch6_p = ch6;
 		yaw_angle.SetTunings(2.5, 0, 0);
 
-		height_baro.SetTunings(ch6, 0, 0);
+		// height_baro.SetTunings(ch6, 0, 0);
+		height_sonar.SetTunings(2, 0, 1);
+		height_sonar_2.SetTunings(0.5, 0, 0.5);
 
 		ch6_count = 0;
 	}
@@ -137,8 +152,9 @@ ISR(TIMER2_OVF_vect) {
 
 void setup()
 {
-	Serial.begin(115200);	// Set the baud rate to 115200
-	Serial2.begin(57600);
+	Serial.begin(57600);	// Set the baud rate to 115200
+	// Serial1.begin(9600);    // GPS
+	Serial2.begin(9600);	// Used to communicate with the Slave
 
 	rc_setup();
 	motor_setup();
@@ -247,6 +263,9 @@ void setup()
 		Serial.println(")");
 	}
 
+	// Sonar
+	// sonar_setup();
+
 	// Serial.println("############# LOOP... ##############");
 	mpu_time_count = 0;
 	rc_time_count = 0;
@@ -272,6 +291,99 @@ void loop() {
 	// 		digitalWrite(yellowled, yellowled_state);
 	// 	}
 	// }
+	//
+	while (Serial2.available() > 0) {
+		serial2_rev_buf[rev_i] = Serial2.read();
+		// if (serial2_rev_buf[rev_i] == ',') {
+		// 	rev_j = 0;
+		// 	comma++;
+		// }
+		// else if (serial2_rev_buf[rev_i] == '\n') {
+		if (serial2_rev_buf[rev_i] == '\n') {
+			// for (int j = 0; j < rev_i; j++) {
+			// 	Serial.write(serial2_rev_buf[j]);
+			// }
+			// Serial.println();
+
+			for (int i = 0; i < 4; i++) {
+				for (int j = 0; j < 4; j++) {
+					if (serial2_rev_buf[5 * i + j] < '0' || serial2_rev_buf[5 * i + j] > '9') {
+						rev_unhealthy = true;
+					}
+				}
+			}
+			if (rev_unhealthy == false) {
+				FL = (serial2_rev_buf[0] - '0') * 1000 + (serial2_rev_buf[1] - '0') * 100 + (serial2_rev_buf[2] - '0') * 10 + (serial2_rev_buf[3] - '0') * 1;
+				BL = (serial2_rev_buf[5] - '0') * 1000 + (serial2_rev_buf[6] - '0') * 100 + (serial2_rev_buf[7] - '0') * 10 + (serial2_rev_buf[8] - '0') * 1;
+				FR = (serial2_rev_buf[10] - '0') * 1000 + (serial2_rev_buf[11] - '0') * 100 + (serial2_rev_buf[12] - '0') * 10 + (serial2_rev_buf[13] - '0') * 1;
+				BR = (serial2_rev_buf[15] - '0') * 1000 + (serial2_rev_buf[16] - '0') * 100 + (serial2_rev_buf[17] - '0') * 10 + (serial2_rev_buf[18] - '0') * 1;
+				Serial.print(FL);
+				Serial.print(' ');
+				Serial.print(BL);
+				Serial.print(' ');
+				Serial.print(FR);
+				Serial.print(' ');
+				Serial.println(BR);
+			}
+			else {
+				rev_unhealthy = false;
+				FL = FL;
+				BL = BL;
+				FR = FR;
+				BR = BR;
+			}
+
+
+			rev_i = 0;
+			// rev_j = 0;
+			// comma = 0;
+			break;
+		}
+		// else if ((serial2_rev_buf[rev_i] <= '9') && (serial2_rev_buf[rev_i] >= '0')) {
+		// 	switch (comma) {
+		// 	case 0:
+		// 		FL_tmp[rev_j] = serial2_rev_buf[rev_i];
+		// 		if (rev_j == 3)
+		// 			FL = (FL_tmp[0] - '0') * 1000 + (FL_tmp[1] - '0') * 100 + (FL_tmp[2] - '0') * 10 + (FL_tmp[3] - '0') * 1;
+		// 		rev_j++;
+		// 		break;
+		// 	case 1:
+		// 		BL_tmp[rev_j] = serial2_rev_buf[rev_i];
+		// 		if (rev_j == 3)
+		// 			BL = (BL_tmp[0] - '0') * 1000 + (BL_tmp[1] - '0') * 100 + (BL_tmp[2] - '0') * 10 + (BL_tmp[3] - '0') * 1;
+		// 		rev_j++;
+		// 		break;
+		// 	case 2:
+		// 		FR_tmp[rev_j] = serial2_rev_buf[rev_i];
+		// 		if (rev_j == 3)
+		// 			FR = (FR_tmp[0] - '0') * 1000 + (FR_tmp[1] - '0') * 100 + (FR_tmp[2] - '0') * 10 + (FR_tmp[3] - '0') * 1;
+		// 		rev_j++;
+		// 		break;
+		// 	case 3:
+		// 		BR_tmp[rev_j] = serial2_rev_buf[rev_i];
+		// 		if (rev_j == 3)
+		// 			BR = (BR_tmp[0] - '0') * 1000 + (BR_tmp[1] - '0') * 100 + (BR_tmp[2] - '0') * 10 + (BR_tmp[3] - '0') * 1;
+		// 		rev_j++;
+		// 		break;
+		// 	default:
+		// 		break;
+		// 	}
+		// }
+		// else if (serial2_rev_buf[rev_i] < '0' || serial2_rev_buf[rev_i] > '9') {
+		// 	rev_i = 0;
+		// 	break;
+		// }
+		// else {
+		// comma = 0;
+		// rev_i = 0;
+		// rev_j = 0;
+		// break;
+		// }
+		if (rev_i == 49)
+			rev_i = 0;
+		rev_i++;
+	}
+
 
 	// if DMP initialization during setup failed, don't try to do anything
 	if (!dmpReady)
@@ -302,6 +414,11 @@ void loop() {
 		ms5611_alt_average();
 	}
 
+	// if (alt_mode_timer >= 100) {
+	// 	alt_mode_timer = 0;
+	// 	sonar_mode();
+	// }
+
 
 	if (rc_time_count >= 10) {
 		rc_time_count = 0;
@@ -309,6 +426,7 @@ void loop() {
 		rc_adjust();
 		ms5611_adjust();
 		motor_output();
+		// motor_slave_output();
 	}
 
 	if (hundred_timer >= 100) {
@@ -320,9 +438,9 @@ void loop() {
 		// Serial_rc();
 		// Serial_gyro();
 		// Serial_accel();
-		Serial_alt();
+		// Serial_alt();
 		// Serial_heading();
-		// Serial2.println("testing...");
+		//Serial.println('y');
 	}
 
 	//send-receive with matlab if it's time
@@ -552,12 +670,13 @@ void Serial_accel()
 
 void Serial_alt() {
 	Serial.print("BARO"); Serial.print(' ');
-	Serial.print(throttle1); Serial.print(' ');
-	Serial.print(on_ch5); Serial.print(' ');
+	// Serial.print(throttle1); Serial.print(' ');
+	// Serial.print(on_ch5); Serial.print(' ');
 	Serial.print(ch6); Serial.print(' ');
-	Serial.print(average_altitude); Serial.print(' ');
+	// Serial.print(average_altitude); Serial.print(' ');
 	// Serial.print(height_baro_pid_output); Serial.print(' ');
-	Serial.print(_sonar_altitude); Serial.print(' ');
+	// Serial.print(kal_sonar); Serial.print(' ');
+	Serial.print(_sonar_mode_altitude); Serial.print(' ');
 	Serial.println("END");
 }
 

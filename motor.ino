@@ -45,11 +45,17 @@ float height_baro_pid_output = 0;
 float lock_average_altitude;
 // Pid roll_angle, pitch_angle, yaw_angle, roll_gyro, pitch_gyro, yaw_gyro;
 
+float height_sonar_pid_output = 0;
+float height_sonar_2_pid_output = 0;
+float lock_sonar_altitude;
+
 PID pitch_angle(&kal_pit, &pitch_angle_pid_output, &pitch, 4, 0.04, 0, DIRECT);
 PID roll_angle(&kal_rol, &roll_angle_pid_output, &roll, 4, 0.05, 0, DIRECT);
 PID yaw_angle(&kal_yaw, &yaw_angle_pid_output, &relative_yaw, 2, 0.05, 0, DIRECT);
 PID height_baro(&average_altitude, &height_baro_pid_output, &lock_average_altitude, 0, 0, 0, DIRECT);
 // PID height_baro(&average_altitude, &height_baro_pid_output, &throttle, 0, 0, 0, DIRECT);
+PID height_sonar(&kal_sonar, &height_sonar_pid_output, &lock_sonar_altitude, 0, 0, 0, DIRECT);
+PID height_sonar_2(&Az, &height_sonar_2_pid_output, &height_sonar_pid_output, 0, 0, 0, DIRECT);
 
 float kal_pit_adjust = 0;
 float kal_rol_adjust = 0;
@@ -59,6 +65,8 @@ int throttle1 = 0;
 int throttle2 = 0;
 int throttle3 = 0;
 int throttle4 = 0;
+
+float lock_throttle;
 
 extern volatile unsigned int alt_hold_count;
 
@@ -91,6 +99,14 @@ void motor_setup() {
 	height_baro.SetMode(AUTOMATIC);
 	height_baro.SetSampleTime(300);
 	height_baro.SetOutputLimits(-450, 450);
+
+	height_sonar.SetMode(AUTOMATIC);
+	height_sonar.SetSampleTime(10);
+	height_sonar.SetOutputLimits(-450, 450);
+
+	height_sonar_2.SetMode(AUTOMATIC);
+	height_sonar_2.SetSampleTime(10);
+	height_sonar_2.SetOutputLimits(-450, 450);
 }
 
 void motor_adjust() {
@@ -125,6 +141,13 @@ void motor_adjust() {
 	}
 }
 
+void motor_slave_output(){
+		motor1.writeMicroseconds(FL);
+		motor2.writeMicroseconds(BL);
+		motor3.writeMicroseconds(BR);
+		motor4.writeMicroseconds(FR);
+}
+
 void motor_output() {
 	if (motor_adjust_bit == true) {
 #ifdef CALI_THRO
@@ -140,15 +163,6 @@ void motor_output() {
 			// pitch_angle_pid_output = pitch_angle.Update(tmp);
 			pitch_angle.Compute();
 			roll_angle.Compute();
-
-			/**
-			 * We don't need to use the yaw speed.
-			 */
-			// if ((-20 < GyroZ) && (GyroZ < 20)) {
-			// 	first_kal_yaw = kal_yaw;
-			// 	relative_yaw = first_kal_yaw;
-			// 	max_yaw = 0;
-			// }
 
 			relative_yaw = first_kal_yaw + max_yaw;
 
@@ -177,12 +191,23 @@ void motor_output() {
 
 			if (on_ch5 == true) {
 				// throttle = map(throttle, 1050, 1900, 1, 15);
-				height_baro.Compute();
-				float tmp3 = height_baro_pid_output;// + 0.90 * Az;
+				// height_baro.Compute();
+				// float tmp3 = height_baro_pid_output;// + 0.90 * Az;
+				// throttle1 = throttle - tmp - tmp1 - tmp2 + tmp3;
+				// throttle2 = throttle + tmp - tmp1 + tmp2 + tmp3;
+				// throttle3 = throttle + tmp + tmp1 - tmp2 + tmp3;
+				// throttle4 = throttle - tmp + tmp1 + tmp2 + tmp3;
+
+				// if (kal_sonar > 20) {
+				// lock_sonar_altitude = kal_sonar - 1;
+				height_sonar.Compute();
+				height_sonar_2.Compute();
+				float tmp3 = height_sonar_2_pid_output;
 				throttle1 = throttle - tmp - tmp1 - tmp2 + tmp3;
 				throttle2 = throttle + tmp - tmp1 + tmp2 + tmp3;
 				throttle3 = throttle + tmp + tmp1 - tmp2 + tmp3;
 				throttle4 = throttle - tmp + tmp1 + tmp2 + tmp3;
+				// }
 			}
 			else {
 
@@ -192,12 +217,14 @@ void motor_output() {
 				throttle4 = throttle - tmp + tmp1 + tmp2;
 
 				lock_average_altitude = average_altitude;
+				// lock_throttle = throttle;
+				// lock_sonar_altitude = kal_sonar;
 			}
 
-			throttle1 = constrain(throttle1, 1, MAX_SIGNAL);//start from non-zero to finish the calibration
-			throttle2 = constrain(throttle2, 1, MAX_SIGNAL);//start from non-zero to finish the calibration
-			throttle3 = constrain(throttle3, 1, MAX_SIGNAL);//start from non-zero to finish the calibration
-			throttle4 = constrain(throttle4, 1, MAX_SIGNAL);//start from non-zero to finish the calibration
+			throttle1 = constrain(throttle1, 1050, MAX_SIGNAL);
+			throttle2 = constrain(throttle2, 1050, MAX_SIGNAL);
+			throttle3 = constrain(throttle3, 1050, MAX_SIGNAL);
+			throttle4 = constrain(throttle4, 1050, MAX_SIGNAL);
 
 
 
@@ -208,6 +235,10 @@ void motor_output() {
 
 		}
 		else {
+			throttle1 = MIN_SIGNAL;
+			throttle2 = MIN_SIGNAL;
+			throttle3 = MIN_SIGNAL;
+			throttle4 = MIN_SIGNAL;
 			/*
 			** When the propellers does not spin, transfering the take-off yaw (first_kal_yaw) to the setpoint (relative_yaw), so that it can perfrom PID caluculation.
 			*/
@@ -216,10 +247,10 @@ void motor_output() {
 			/*
 			** It has to output throttle, even if throttle < 1050, otherwise, the motor will "bibibibibibibibibi"
 			*/
-			motor1.writeMicroseconds(MIN_SIGNAL);
-			motor2.writeMicroseconds(MIN_SIGNAL);
-			motor3.writeMicroseconds(MIN_SIGNAL);
-			motor4.writeMicroseconds(MIN_SIGNAL);
+			motor1.writeMicroseconds(throttle1);
+			motor2.writeMicroseconds(throttle2);
+			motor3.writeMicroseconds(throttle3);
+			motor4.writeMicroseconds(throttle4);
 
 		}
 	}

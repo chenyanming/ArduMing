@@ -81,6 +81,11 @@ extern PID pitch_angle;
 extern PID roll_angle;
 extern PID yaw_angle;
 extern PID height_baro;
+extern PID height_sonar;
+extern PID height_sonar_2;
+
+
+void motor_slave_output();
 
 // MS5611
 extern void ms5611_setup();
@@ -110,8 +115,12 @@ extern int mx, my, mz, mx_r, my_r;
 extern float _heading;
 
 // sonar
+void sonar_setup();
 void sonar_get();
-extern unsigned int _sonar_altitude;
+void sonar_mode();
+extern float _sonar_altitude;
+extern float _sonar_mode_altitude;
+extern float kal_sonar;
 
 
 #endif
