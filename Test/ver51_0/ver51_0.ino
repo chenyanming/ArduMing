@@ -286,7 +286,7 @@ void loop() {
 
   roll = map(inputs[3], 1083, 1907, -20, 20);
   pitch = map(inputs[1], 1090, 1907, -20, 20);
-  throttle = map(inputs[2], 1014, 1929, 1000, 1800);  //2000 is the maximum of throttle, set a lower value to remain some room for PID controls
+  throttle = map(inputs[2], 1014, 1929, 1000, 1900);  //2000 is the maximum of throttle, set a lower value to remain some room for PID controls
   yaw = map(inputs[0], 1090, 1911, -180, 180);
 
   if (inputs[4] <= 2000) {
@@ -308,11 +308,11 @@ void loop() {
   while (con_bytesAvailable > 0) {
     char con = (char)hal.console->read();
     if (con == '-') {
-      pitch_angle_kp = pitch_angle_kp + 0.01;
+      pitch_angle_kp = pitch_angle_kp + 0.1;
       PID_PITCH_ANGLE.kP(pitch_angle_kp);
     }
     else if (con == '=') {
-      pitch_angle_kp = pitch_angle_kp - 0.01;
+      pitch_angle_kp = pitch_angle_kp - 0.1;
       PID_PITCH_ANGLE.kP(pitch_angle_kp);
     }
 
@@ -543,10 +543,10 @@ void loop() {
     throttle3 = throttle + pitch_pid_output;
     throttle4 = throttle - pitch_pid_output;
 
-    throttle1 = constrain(throttle1, 1030, 2000);
-    throttle2 = constrain(throttle2, 1030, 2000);
-    throttle3 = constrain(throttle3, 1030, 2000);
-    throttle4 = constrain(throttle4, 1030, 2000);
+    throttle1 = constrain(throttle1, 1030, 1900);
+    throttle2 = constrain(throttle2, 1030, 1900);
+    throttle3 = constrain(throttle3, 1030, 1900);
+    throttle4 = constrain(throttle4, 1030, 1900);
 
     hal.rcout->write(MOTOR_FL, throttle1);
     hal.rcout->write(MOTOR_BL, throttle2);
@@ -560,7 +560,7 @@ void loop() {
     //{
     // hal.console->printf_P(PSTR("IMU YAW %4.1f PIT %4.1f ROLL %4.1f\r\n"), imu_yaw, imu_pitch, imu_roll);
     // hal.console->printf_P(PSTR("%ld,%ld,%ld\r\n"), roll_pid_output, pitch_pid_output, yaw_pid_output);
-    hal.console->printf_P(PSTR("remote YAW %ld PIT %ld ROLL %ld TRO %ld pitch_angle_kp %f pitch_speed_kp %f pitch_speed_ki %f pitch_speed_kd %f \r\n"), yaw, pitch, roll, throttle, pitch_angle_kp, pitch_speed_kp, pitch_speed_ki, pitch_speed_kd);
+    hal.console->printf_P(PSTR("remote YAW %ld PIT %ld ROLL %ld TRO %ld pitch_angle_kp %f pitch_speed_kp %f pitch_speed_ki %f pitch_speed_kd %f pitch_pid_output %f\r\n"), yaw, pitch, roll, throttle, pitch_angle_kp, pitch_speed_kp, pitch_speed_ki, pitch_speed_kd, pitch_pid_output);
     // hal.console->printf_P(PSTR("output FL %ld BL %ld FR %ld BR %ld\r\n"), throttle + roll_pid_output + pitch_pid_output, throttle + roll_pid_output - pitch_pid_output, throttle - roll_pid_output + pitch_pid_output, throttle - roll_pid_output - pitch_pid_output);
     // hal.console->printf_P(PSTR("output FL %ld BL %ld FR %ld BR %ld\r\n"), throttle + roll_pid_output + pitch_pid_output - yaw_pid_output, throttle + roll_pid_output - pitch_pid_output + yaw_pid_output, throttle - roll_pid_output + pitch_pid_output + yaw_pid_output, throttle - roll_pid_output - pitch_pid_output - yaw_pid_output);
     hal.uartB->printf_P(PSTR("%ld,%ld,%ld,%ld\n"), throttle1, throttle2, throttle3, throttle4);

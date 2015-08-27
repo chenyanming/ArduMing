@@ -49,9 +49,9 @@ float height_sonar_pid_output = 0;
 float height_sonar_2_pid_output = 0;
 float lock_sonar_altitude;
 
-PID pitch_angle(&kal_pit, &pitch_angle_pid_output, &pitch, 4, 0.04, 0, DIRECT);
-PID roll_angle(&kal_rol, &roll_angle_pid_output, &roll, 4, 0.05, 0, DIRECT);
-PID yaw_angle(&kal_yaw, &yaw_angle_pid_output, &relative_yaw, 2, 0.05, 0, DIRECT);
+PID pitch_angle(&kal_pit, &pitch_angle_pid_output, &pitch, 1.84, 0.18, 0, DIRECT);
+PID roll_angle(&kal_rol, &roll_angle_pid_output, &roll, 1.85, 0.18, 0, DIRECT);
+PID yaw_angle(&kal_yaw, &yaw_angle_pid_output, &relative_yaw, 2.5, 0, 0, DIRECT);
 PID height_baro(&average_altitude, &height_baro_pid_output, &lock_average_altitude, 0, 0, 0, DIRECT);
 // PID height_baro(&average_altitude, &height_baro_pid_output, &throttle, 0, 0, 0, DIRECT);
 PID height_sonar(&kal_sonar, &height_sonar_pid_output, &lock_sonar_altitude, 0, 0, 0, DIRECT);
@@ -185,7 +185,7 @@ void motor_output() {
 			 * X configuration
 			 */
 			float tmp = pitch_angle_pid_output + 0.90 * GyroX; //4, 0.04, 2
-			float tmp1 = roll_angle_pid_output + 0.90 * GyroY; //4, 0.04, 2
+			float tmp1 = roll_angle_pid_output + 1.30 * GyroY; //4, 0.04, 2
 			// float tmp2 = yaw_angle_pid_output + last_ch6_d * GyroZ; //4, 0.04, 2
 			float tmp2 = yaw_angle_pid_output + 0.90 * GyroZ; //4, 0.04, 2
 
