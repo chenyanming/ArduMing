@@ -172,7 +172,7 @@ void setup()
   hal.uartB->begin(57600, 128, 128);
 
   /*uartC is used to communicate with the Master*/
-  hal.uartC->begin(9600, 128, 128);
+  hal.uartC->begin(115200, 128, 128);
 
   /*enable sonar*/
   AP_HAL::AnalogSource *analog_source = hal.analogin->channel(8);
@@ -282,10 +282,15 @@ void loop()
   yaw = map(inputs[3], 1083, 1907, -180, 180);
   */
 
-  roll = map(inputs[3], 1083, 1907, -45, 45);
-  pitch = map(inputs[1], 1090, 1907, -45, 45);
-  throttle = map(inputs[2], 1014, 1929, 1000, 1800);  //2000 is the maximum of throttle, set a lower value to remain some room for PID controls
-  yaw = map(inputs[0], 1090, 1911, -180, 180);
+  // roll = map(inputs[3], 1083, 1907, -45, 45);
+  // pitch = map(inputs[1], 1090, 1907, -45, 45);
+  // throttle = map(inputs[2], 1014, 1929, 1000, 1800);  //2000 is the maximum of throttle, set a lower value to remain some room for PID controls
+  // yaw = map(inputs[0], 1090, 1911, -180, 180);
+
+  roll = map(inputs[3], 1050, 1840, -45, 45);
+  pitch = map(inputs[1], 1110, 1860, -45, 45);
+  throttle = map(inputs[2], 1130, 1880, 1000, 1800);  //2000 is the maximum of throttle, set a lower value to remain some room for PID controls
+  yaw = map(inputs[0], 1150, 1880, -180, 180);
 
   //fixing small errors of signals from remote controller
   if (abs(roll) <= 3)
@@ -441,7 +446,7 @@ void loop()
       /***************************************************/
     }
 
-    if (inputs[4] < 1300)
+    if (inputs[4] < 1500)
     {
       /****************height control******************/
 
@@ -504,10 +509,10 @@ void loop()
     // hal.rcout->write(MOTOR_BR, throttle - roll_pid_output - pitch_pid_output - yaw_pid_output);
     // hal.rcout->write(MOTOR_FR, throttle - roll_pid_output + pitch_pid_output + yaw_pid_output);
 
-    int throttle1 = throttle + pitch_pid_output + roll_pid_output - yaw_pid_output;
-    int throttle2 = throttle - pitch_pid_output + roll_pid_output + yaw_pid_output;
-    int throttle3 = throttle - pitch_pid_output - roll_pid_output - yaw_pid_output;
-    int throttle4 = throttle + pitch_pid_output - roll_pid_output + yaw_pid_output;
+    long throttle1 = throttle + pitch_pid_output + roll_pid_output - yaw_pid_output;
+    long throttle2 = throttle - pitch_pid_output + roll_pid_output + yaw_pid_output;
+    long throttle3 = throttle - pitch_pid_output - roll_pid_output - yaw_pid_output;
+    long throttle4 = throttle + pitch_pid_output - roll_pid_output + yaw_pid_output;
 
     hal.rcout->write(MOTOR_FL, throttle1);
     hal.rcout->write(MOTOR_BL, throttle2);
@@ -516,7 +521,7 @@ void loop()
 
     hal.console->printf_P(PSTR("IMU YAW %4.1f PIT %4.1f ROLL %4.1f\r\n"), imu_yaw, imu_pitch, imu_roll);
     hal.console->printf_P(PSTR("remote YAW %ld PIT %ld ROLL %ld TRO %ld\r\n"), yaw, pitch, roll, throttle);
-    hal.uartC->printf_P(PSTR("%d,%d,%d,%d\n"), throttle1, throttle2, throttle3, throttle4);
+    hal.uartC->printf_P(PSTR("%ld,%ld,%ld,%ld\n"), throttle1, throttle2, throttle3, throttle4);
 
     /*
     static int count = 0;
