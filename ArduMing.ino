@@ -157,7 +157,7 @@ void setup()
 {
 	Serial.begin(57600);	// Set the baud rate to 115200
 	// Serial1.begin(9600);    // GPS
-	Serial2.begin(9600);	// Used to communicate with the Slave
+	Serial2.begin(115200);	// Used to communicate with the Slave
 
 	rc_setup();
 	motor_setup();
@@ -293,7 +293,7 @@ void loop() {
 		// 	yellowled_state = !yellowled_state;
 		// 	digitalWrite(yellowled, yellowled_state);
 		// }
-		
+
 		// if (incomingByte == '-') {
 		// 	roll_p = roll_p + 0.01;
 		// 	roll_angle.SetTunings(roll_p, 0, 0);
@@ -326,8 +326,8 @@ void loop() {
 			if (rev_unhealthy == false) {
 				FL = (serial2_rev_buf[0] - '0') * 1000 + (serial2_rev_buf[1] - '0') * 100 + (serial2_rev_buf[2] - '0') * 10 + (serial2_rev_buf[3] - '0') * 1;
 				BL = (serial2_rev_buf[5] - '0') * 1000 + (serial2_rev_buf[6] - '0') * 100 + (serial2_rev_buf[7] - '0') * 10 + (serial2_rev_buf[8] - '0') * 1;
-				FR = (serial2_rev_buf[10] - '0') * 1000 + (serial2_rev_buf[11] - '0') * 100 + (serial2_rev_buf[12] - '0') * 10 + (serial2_rev_buf[13] - '0') * 1;
-				BR = (serial2_rev_buf[15] - '0') * 1000 + (serial2_rev_buf[16] - '0') * 100 + (serial2_rev_buf[17] - '0') * 10 + (serial2_rev_buf[18] - '0') * 1;
+				BR = (serial2_rev_buf[10] - '0') * 1000 + (serial2_rev_buf[11] - '0') * 100 + (serial2_rev_buf[12] - '0') * 10 + (serial2_rev_buf[13] - '0') * 1;
+				FR = (serial2_rev_buf[15] - '0') * 1000 + (serial2_rev_buf[16] - '0') * 100 + (serial2_rev_buf[17] - '0') * 10 + (serial2_rev_buf[18] - '0') * 1;
 				// Serial.print(FL);
 				// Serial.print(' ');
 				// Serial.print(BL);
@@ -340,8 +340,8 @@ void loop() {
 				rev_unhealthy = false;
 				FL = FL;
 				BL = BL;
-				FR = FR;
 				BR = BR;
+				FR = FR;
 			}
 
 
@@ -436,8 +436,10 @@ void loop() {
 		motor_adjust();
 		rc_adjust();
 		ms5611_adjust();
-		motor_output();
-		// motor_slave_output();
+		if (on_ch5 == true)
+			motor_output();
+		else
+			motor_slave_output();
 		// Serial_throttle();
 	}
 
@@ -448,11 +450,13 @@ void loop() {
 		// SerialSend_rol();
 		// SerialSend_yaw();
 		// Serial_rc();
-		// Serial_gyro();
+		Serial_gyro();
 		// Serial_accel();
 		// Serial_alt();
 		// Serial_heading();
 		//Serial.println('y');
+		// Serial_slave();
+		// Serial_master();
 	}
 
 	//send-receive with matlab if it's time
@@ -718,4 +722,26 @@ void Serial_throttle() {
 	Serial.print(throttle3); Serial.print(' ');
 	Serial.print(throttle4); Serial.print(' ');
 	Serial.println("END");
+}
+
+void Serial_slave() {
+	Serial.print("Slave"); Serial.print(' ');
+	Serial.print(FL); Serial.print(' ');
+	Serial.print(BL); Serial.print(' ');
+	Serial.print(BR); Serial.print(' ');
+	Serial.print(FR); Serial.print(' ');
+	Serial.println("END");
+
+}
+
+void Serial_master() {
+	Serial.print("Master"); Serial.print(' ');
+	Serial.print(kal_pit); Serial.print(' ');
+	Serial.print(kal_rol); Serial.print(' ');
+	Serial.print(kal_yaw); Serial.print(' ');
+	Serial.print(GyroX); Serial.print(' ');
+	Serial.print(GyroY); Serial.print(' ');
+	Serial.print(GyroZ); Serial.print(' ');
+	Serial.println("END");
+
 }

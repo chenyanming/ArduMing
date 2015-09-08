@@ -235,13 +235,13 @@ void loop()
 
     throttle1 = throttle + roll_pid_output + pitch_pid_output - yaw_pid_output;
     throttle2 = throttle + roll_pid_output - pitch_pid_output + yaw_pid_output;
-    throttle3 = throttle - roll_pid_output + pitch_pid_output + yaw_pid_output;
-    throttle4 = throttle - roll_pid_output - pitch_pid_output - yaw_pid_output;
+    throttle3 = throttle - roll_pid_output - pitch_pid_output - yaw_pid_output;
+    throttle4 = throttle - roll_pid_output + pitch_pid_output + yaw_pid_output;
 
     hal.rcout->write(MOTOR_FL, throttle1);
     hal.rcout->write(MOTOR_BL, throttle2);
-    hal.rcout->write(MOTOR_FR, throttle3);
-    hal.rcout->write(MOTOR_BR, throttle4);
+    hal.rcout->write(MOTOR_BR, throttle3);
+    hal.rcout->write(MOTOR_FR, throttle4);
 
 
     static int count = 0;
@@ -264,8 +264,8 @@ void loop()
     //make sure the motors are off
     hal.rcout->write(MOTOR_FL, 1000);
     hal.rcout->write(MOTOR_BL, 1000);
-    hal.rcout->write(MOTOR_FR, 1000);
     hal.rcout->write(MOTOR_BR, 1000);
+    hal.rcout->write(MOTOR_FR, 1000);
     hal.uartB->printf_P(PSTR("1000,1000,1000,1000\n"));
     hal.uartC->printf_P(PSTR("1000,1000,1000,1000\n"));
 

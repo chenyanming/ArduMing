@@ -189,7 +189,7 @@ void motor_output() {
 			// float tmp2 = yaw_angle_pid_output + last_ch6_d * GyroZ; //4, 0.04, 2
 			float tmp2 = yaw_angle_pid_output + 0.90 * GyroZ; //4, 0.04, 2
 
-			if (on_ch5 == true) {
+			// if (on_ch5 == true) {
 				// throttle = map(throttle, 1050, 1900, 1, 15);
 				// height_baro.Compute();
 				// float tmp3 = height_baro_pid_output;// + 0.90 * Az;
@@ -200,26 +200,26 @@ void motor_output() {
 
 				// if (kal_sonar > 20) {
 				// lock_sonar_altitude = kal_sonar - 1;
-				height_sonar.Compute();
-				height_sonar_2.Compute();
-				float tmp3 = height_sonar_2_pid_output;
-				throttle1 = throttle - tmp - tmp1 - tmp2 + tmp3;
-				throttle2 = throttle + tmp - tmp1 + tmp2 + tmp3;
-				throttle3 = throttle + tmp + tmp1 - tmp2 + tmp3;
-				throttle4 = throttle - tmp + tmp1 + tmp2 + tmp3;
+				// height_sonar.Compute();
+				// height_sonar_2.Compute();
+				// float tmp3 = height_sonar_2_pid_output;
+				// throttle1 = throttle - tmp - tmp1 - tmp2 + tmp3;
+				// throttle2 = throttle + tmp - tmp1 + tmp2 + tmp3;
+				// throttle3 = throttle + tmp + tmp1 - tmp2 + tmp3;
+				// throttle4 = throttle - tmp + tmp1 + tmp2 + tmp3;
 				// }
-			}
-			else {
+			// }
+			// else {
 
 				throttle1 = throttle - tmp - tmp1 - tmp2;
 				throttle2 = throttle + tmp - tmp1 + tmp2;
 				throttle3 = throttle + tmp + tmp1 - tmp2;
 				throttle4 = throttle - tmp + tmp1 + tmp2;
 
-				lock_average_altitude = average_altitude;
+				// lock_average_altitude = average_altitude;
 				// lock_throttle = throttle;
 				// lock_sonar_altitude = kal_sonar;
-			}
+			// }
 
 			throttle1 = constrain(throttle1, 1050, MAX_SIGNAL);
 			throttle2 = constrain(throttle2, 1050, MAX_SIGNAL);
