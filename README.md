@@ -4,6 +4,13 @@
 * Department of Computing
 * The Hong Kong Polytechnic University
 
+Parts:
+1. Remote Control: WFT06X-A
+2. ESC: Hobbywing, Sky Walker, QUATTRO 25A X 4
+3. Motors: SunnySky, X2212-13 KV: 980 II
+4. Body: 
+5. Baterry: CUAV 2200mAh, 3S, XT60
+
 PS:
 Because the PPM signal of Remote Control is decoded by Timer5 Input Capture which will conflict with the Servo.h library default setting, changing the timer3 and timer5 order can fix this qusetion.
 

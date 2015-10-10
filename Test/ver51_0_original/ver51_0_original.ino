@@ -315,19 +315,19 @@ void loop()
   if (temp_sonar_data > 19 && temp_sonar_data < 190 && height_change < 50 && abs(imu_pitch) < 27 && abs(imu_roll) < 27)
     height_sonar = temp_sonar_data;
   else
-    // hal.console->printf("Sonar noise found %d\n", temp_sonar_data);
+    hal.console->printf("Sonar noise found %d\n", temp_sonar_data);
 
 
 
-    /*
-    hal.console->printf_P(PSTR("IMU YAW %4.1f PIT %4.1f ROLL %4.1f height_change %d"), imu_yaw, imu_pitch, imu_roll, height_change);
-    hal.console->print("dist:");
-    hal.console->print(height_sonar);
-    hal.console->print("\traw:");
-    hal.console->print(sonar->raw_value);
-    hal.console->println();*/
+  /*
+  hal.console->printf_P(PSTR("IMU YAW %4.1f PIT %4.1f ROLL %4.1f height_change %d"), imu_yaw, imu_pitch, imu_roll, height_change);
+  hal.console->print("dist:");
+  hal.console->print(height_sonar);
+  hal.console->print("\traw:");
+  hal.console->print(sonar->raw_value);
+  hal.console->println();*/
 
-    get3DRData();
+  get3DRData();
 
   static int run_once = 1;
   static int run_once_each_on = 1;
@@ -446,7 +446,7 @@ void loop()
       /***************************************************/
     }
 
-    if (inputs[4] < 1500)
+    if (inputs[4] < 1300)
     {
       /****************height control******************/
 
