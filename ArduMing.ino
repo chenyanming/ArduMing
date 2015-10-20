@@ -55,9 +55,6 @@ unsigned char FR_tmp[4];
 unsigned char BR_tmp[4];
 unsigned int FL = 0, BL = 0, FR = 0, BR = 0;
 
-// PID
-float roll_p = 1.85;
-
 
 /**
  * @param {N/A} TIMER2_OVF_vect [Timer2 Overflow Interrupt Vector, called every 1ms]
@@ -156,7 +153,7 @@ ISR(TIMER2_OVF_vect) {
 void setup()
 {
 	Serial.begin(57600);	// Set the baud rate to 115200
-	// Serial1.begin(9600);    // GPS
+	Serial1.begin(57600);    // 3DR
 	Serial2.begin(115200);	// Used to communicate with the Slave
 
 	rc_setup();
@@ -267,7 +264,7 @@ void setup()
 	}
 
 	// Sonar
-	// sonar_setup();
+	sonar_setup();
 
 	// Serial.println("############# LOOP... ##############");
 	mpu_time_count = 0;
@@ -294,13 +291,54 @@ void loop() {
 		// 	digitalWrite(yellowled, yellowled_state);
 		// }
 
+		if (incomingByte == '9') {
+			pitch_p = pitch_p + 0.01;
+			pitch_angle.SetTunings(pitch_p, 0, 0);
+		}
+		else if (incomingByte == '0') {
+			pitch_p = pitch_p - 0.01;
+			pitch_angle.SetTunings(pitch_p, 0, 0);
+		}
+		else if (incomingByte == '-') {
+			pitch_d = pitch_d + 0.01;
+		}
+		else if (incomingByte == '=') {
+			pitch_d = pitch_d - 0.01;
+		}
+		// else if (incomingByte == '[') {
+		// 	pitch_speed_p = pitch_speed_p + 0.01;
+		// 	pitch_speed.SetTunings(pitch_speed_p, pitch_speed_i, pitch_speed_d);
+		// }
+		// else if (incomingByte == ']') {
+		// 	pitch_speed_p = pitch_speed_p - 0.01;
+		// 	pitch_speed.SetTunings(pitch_speed_p, pitch_speed_i, pitch_speed_d);
+		// }
+		// else if (incomingByte == ';') {
+		// 	pitch_speed_i = pitch_speed_i + 0.01;
+		// 	pitch_speed.SetTunings(pitch_speed_p, pitch_speed_i, pitch_speed_d);
+		// }
+		// else if (incomingByte == '\'') {
+		// 	pitch_speed_i = pitch_speed_i - 0.01;
+		// 	pitch_speed.SetTunings(pitch_speed_p, pitch_speed_i, pitch_speed_d);
+		// }
+		// else if (incomingByte == '.') {
+		// 	pitch_speed_d = pitch_speed_d + 0.01;
+		// 	pitch_speed.SetTunings(pitch_speed_p, pitch_speed_i, pitch_speed_d);
+		// }
+		// else if (incomingByte == '/') {
+		// 	pitch_speed_d = pitch_speed_d - 0.01;
+		// 	pitch_speed.SetTunings(pitch_speed_p, pitch_speed_i, pitch_speed_d);
+		// }
+
 		// if (incomingByte == '-') {
 		// 	roll_p = roll_p + 0.01;
 		// 	roll_angle.SetTunings(roll_p, 0, 0);
 		// }
-		// else if (incomingByte == '=')
+		// else if (incomingByte == '=') {
 		// 	roll_p = roll_p - 0.01;
 		// 	roll_angle.SetTunings(roll_p, 0, 0);
+		// 	}
+
 	}
 
 	while (Serial2.available() > 0) {
@@ -418,17 +456,19 @@ void loop() {
 	ms5611_get();
 
 
-	// sonar_get();
+	sonar_get();
+
+	mavlink_get();
 
 	if (alt_average_timer >= 30) {
 		alt_average_timer = 0;
 		ms5611_alt_average();
 	}
 
-	// if (alt_mode_timer >= 100) {
-	// 	alt_mode_timer = 0;
-	// 	sonar_mode();
-	// }
+	if (alt_mode_timer >= 100) {
+		alt_mode_timer = 0;
+		sonar_mode();
+	}
 
 
 	if (rc_time_count >= 10) {
@@ -446,17 +486,18 @@ void loop() {
 	if (hundred_timer >= 100) {
 		hundred_timer = 0;
 		// SerialReceive();
-		// SerialSend_pit();
+		SerialSend_pit();
 		// SerialSend_rol();
 		// SerialSend_yaw();
 		// Serial_rc();
-		Serial_gyro();
+		// Serial_gyro();
 		// Serial_accel();
 		// Serial_alt();
 		// Serial_heading();
 		//Serial.println('y');
 		// Serial_slave();
 		// Serial_master();
+		// Serial_mavlink();
 	}
 
 	//send-receive with matlab if it's time
@@ -478,85 +519,6 @@ void loop() {
 	// dump1 = micros();
 	// Serial.println(dump1 - dump);
 } // End of loop()
-
-
-#if 0
-
-/********************************************
- * Serial Communication functions / helpers
- ********************************************/
-
-
-union {                // This Data structure lets
-	byte asBytes[24];    // us take the byte array
-	float asFloat[6];    // sent from processing and
-}                      // easily convert it to a
-foo;                   // float array
-
-
-// getting float values from processing into the arduino
-// was no small task.  the way this program does it is
-// as follows:
-//  * a float takes up 4 bytes.  in processing, convert
-//    the array of floats we want to send, into an array
-//    of bytes.
-//  * send the bytes to the arduino
-//  * use a data structure known as a union to convert
-//    the array of bytes back into an array of floats
-
-//  the bytes coming from the arduino follow the following
-//  format:
-//  0: 0=Manual, 1=Auto, else = ? error ?
-//  1: 0=Direct, 1=Reverse, else = ? error ?
-//  2-5: float pitch
-//  6-9: float input
-//  10-13: float output
-//  14-17: float P_Param
-//  18-21: float I_Param
-//  22-245: float D_Param
-void SerialReceive()
-{
-
-	// read the bytes sent from Processing
-	int index = 0;
-	byte Auto_Man = -1;
-	byte Direct_Reverse = -1;
-	while (Serial.available() && index < 26)
-	{
-		if (index == 0) Auto_Man = Serial.read();
-		else if (index == 1) Direct_Reverse = Serial.read();
-		else foo.asBytes[index - 2] = Serial.read();
-		index++;
-	}
-
-	// if the information we got was in the correct format,
-	// read it into the system
-	if (index == 26  && (Auto_Man == 0 || Auto_Man == 1) && (Direct_Reverse == 0 || Direct_Reverse == 1))
-	{
-		pitch = double(foo.asFloat[0]);
-		//Input=double(foo.asFloat[1]);       // * the user has the ability to send the
-		//   value of "Input"  in most cases (as
-		//   in this one) this is not needed.
-		if (Auto_Man == 0)                    // * only change the output if we are in
-		{	//   manual mode.  otherwise we'll get an
-			pitch_angle_pid_output = double(foo.asFloat[2]);    //   output blip, then the controller will
-		}                                     //   overwrite.
-
-		double p, i, d;                       // * read in and set the controller tunings
-		p = double(foo.asFloat[3]);           //
-		i = double(foo.asFloat[4]);           //
-		d = double(foo.asFloat[5]);           //
-		pitch_angle.SetTunings(p, i, d);            //
-
-		if (Auto_Man == 0) pitch_angle.SetMode(MANUAL); // * set the controller mode
-		else pitch_angle.SetMode(AUTOMATIC);             //
-
-		if (Direct_Reverse == 0) pitch_angle.SetControllerDirection(DIRECT); // * set the controller Direction
-		else pitch_angle.SetControllerDirection(REVERSE);          //
-	}
-	Serial.flush();                         // * clear any random data from the serial buffer
-}
-#endif
 
 void Serial_rc() {
 
@@ -593,9 +555,19 @@ void SerialSend_pit()
 	Serial.print(" ");
 	Serial.print(kal_pit);
 	Serial.print(" ");
-	// Serial.print(pitch_angle_pid_output);
+	Serial.print(pitch_p);
+	Serial.print(" ");
+	Serial.print(pitch_d);
+	Serial.print(" ");
+	// Serial.print(pitch_speed_p);
 	// Serial.print(" ");
-	// Serial.print(roll);
+	// Serial.print(pitch_speed_i);
+	// Serial.print(" ");
+	// Serial.print(pitch_speed_d);
+	// Serial.print(" ");
+	Serial.print(pitch_angle_pid_output);
+	Serial.print(" ");
+	// Serial.print(pitch_speed_pid_output);
 	// Serial.print(" ");
 	// Serial.print(float(throttle3) / 1000);
 	// Serial.print(" ");
@@ -693,13 +665,13 @@ void Serial_accel()
 }
 
 void Serial_alt() {
-	Serial.print("BARO"); Serial.print(' ');
+	Serial.print("SONAR"); Serial.print(' ');
 	// Serial.print(throttle1); Serial.print(' ');
 	// Serial.print(on_ch5); Serial.print(' ');
-	Serial.print(ch6); Serial.print(' ');
+	// Serial.print(ch6); Serial.print(' ');
 	// Serial.print(average_altitude); Serial.print(' ');
 	// Serial.print(height_baro_pid_output); Serial.print(' ');
-	// Serial.print(kal_sonar); Serial.print(' ');
+	Serial.print(kal_sonar); Serial.print(' ');
 	Serial.print(_sonar_mode_altitude); Serial.print(' ');
 	Serial.println("END");
 }
@@ -744,4 +716,29 @@ void Serial_master() {
 	Serial.print(GyroZ); Serial.print(' ');
 	Serial.println("END");
 
+}
+
+void Serial_mavlink() {
+	if (groundMsgReady == 1) {
+		groundMsgReady = 0;
+		Serial.print("MAVLINK ");
+		Serial.print(m_x);
+		Serial.print(" ");
+		Serial.print(m_y);
+		Serial.print(" ");
+		Serial.print(m_z);
+		Serial.print(" ");
+		Serial.print(m_yaw);
+		Serial.print(" ");
+		Serial.print(m_x_change);
+		Serial.print(" ");
+		Serial.print(m_y_change);
+		Serial.print(" ");
+		Serial.print(m_z_change);
+		Serial.print(" ");
+		Serial.print(m_ck);
+		Serial.print(" ");
+		Serial.println("END");
+
+	}
 }

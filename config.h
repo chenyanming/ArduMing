@@ -84,6 +84,7 @@ extern PID height_baro;
 extern PID height_sonar;
 extern PID height_sonar_2;
 
+extern float pitch_p, pitch_i, pitch_d, roll_p, roll_i, roll_d, yaw_p, yaw_i, yaw_d;
 
 void motor_slave_output();
 
@@ -121,6 +122,13 @@ void sonar_mode();
 extern float _sonar_altitude;
 extern float _sonar_mode_altitude;
 extern float kal_sonar;
+
+// mavlink
+void mavlink_get();
+extern int groundMsgReady;
+extern float m_x, m_y, m_z, m_yaw, m_x_change, m_y_change, m_z_change, m_ck;
+
+
 
 
 #endif
