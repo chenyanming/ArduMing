@@ -56,13 +56,17 @@ extern byte fifoBuffer[64];          // FIFO storage buffer (in fact only 42 use
 extern float rpy_pit, rpy_rol, rpy_yaw, kal_pit, kal_rol, kal_yaw, GyroX, GyroY, GyroZ;
 extern int AcceX, AcceY, AcceZ;
 extern float Ax, Ay, Az;
+extern int AcceX_L, AcceY_L, AcceZ_L;
+extern float AcceW_W, AcceX_W, AcceY_W, AcceZ_W;
+extern float Vel_Z;
 
 // Remote Control 
 void rc_setup();
 int rc_adjust();
 void rc_get();
 extern float roll, pitch, throttle, yaw, ch5, ch6, max_yaw;
-extern boolean on_ch5;
+extern boolean on_ch5, off_ch5;
+extern unsigned int ch5_count;
 
 // Motor
 void motor_setup();
@@ -81,10 +85,11 @@ extern PID pitch_angle;
 extern PID roll_angle;
 extern PID yaw_angle;
 extern PID height_baro;
-extern PID height_sonar;
-extern PID height_sonar_2;
+// extern PID height_sonar;
+// extern PID height_sonar_2;
 
 extern float pitch_p, pitch_i, pitch_d, roll_p, roll_i, roll_d, yaw_p, yaw_i, yaw_d;
+extern float height_sonar_p, height_sonar_d;/*PID Sonar*/
 
 void motor_slave_output();
 
@@ -95,7 +100,7 @@ extern void ms5611_convert_ready();
 extern void ms5611_get();
 extern void ms5611_adjust();
 extern void ms5611_alt_average();
-extern float kal_alt;
+extern float baro_altitude;
 // extern volatile unsigned char D1_timer;
 // extern volatile unsigned char D2_timer;
 extern volatile unsigned char convert_timer;
@@ -122,11 +127,22 @@ void sonar_mode();
 extern float _sonar_altitude;
 extern float _sonar_mode_altitude;
 extern float kal_sonar;
+extern float height_sonar_pid_output;
+extern float lock_sonar_altitude;
+extern float Vel_sonar;
+extern int sonar_error;
+extern float SonarPID;
 
 // mavlink
 void mavlink_get();
 extern int groundMsgReady;
 extern float m_x, m_y, m_z, m_yaw, m_x_change, m_y_change, m_z_change, m_ck;
+
+// mavlink and motor
+extern float x_p, x_d;
+extern float y_p, y_d;
+extern PID pid_x;
+extern PID pid_y;
 
 
 

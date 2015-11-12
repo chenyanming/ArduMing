@@ -35,8 +35,11 @@ extern float first_kal_yaw, relative_yaw, max_yaw, kal_rc_yaw;
 volatile unsigned int min_yaw_timer = 0;
 extern int round_timer;
 
+// ch5
+boolean remoteMsgReady = false;
+
 // ch6
-unsigned int last_ch6_p = 0;
+unsigned int last_ch6;
 unsigned int last_ch6_d = 0;
 
 // hold altitude
@@ -106,6 +109,22 @@ ISR(TIMER2_OVF_vect) {
 		// height_baro.SetTunings(ch6, 0, 0);
 		// height_sonar.SetTunings(2, 0, 1);
 		// height_sonar_2.SetTunings(0.5, 0, 0.5);
+
+		// x_p = 2 + ch6;
+		// y_p = 2 + ch6;
+		// pid_x.SetTunings(x_p, 0, 0);
+		// pid_y.SetTunings(y_p, 0, 0);
+		// x_d = 0.5 + ch6;
+		// y_d = 0.5 + ch6;
+
+
+		if (abs(ch6 - last_ch6) >= 0.01) {
+			// roll_d = ch6;
+			// height_sonar_d = ch6;
+			// height_sonar.SetTunings(height_sonar_p, 0, height_sonar_d);
+
+		}
+		last_ch6 = ch6;
 
 		ch6_count = 0;
 	}
@@ -258,9 +277,9 @@ void setup()
 	boolean hmcStatus;
 	hmcStatus = hmc_setup();
 	if (hmcStatus == false) {
-		Serial.print("HMC Initialization failed (code ");
-		Serial.print(hmcStatus);
-		Serial.println(")");
+		// Serial.print("HMC Initialization failed (code ");
+		// Serial.print(hmcStatus);
+		// Serial.println(")");
 	}
 
 	// Sonar
@@ -300,19 +319,37 @@ void loop() {
 			pitch_angle.SetTunings(pitch_p, 0, 0);
 		}
 		else if (incomingByte == '-') {
-			pitch_d = pitch_d + 0.01;
+			pitch_d += 0.01;
 		}
 		else if (incomingByte == '=') {
-			pitch_d = pitch_d - 0.01;
+			pitch_d -= 0.01;
 		}
-		// else if (incomingByte == '[') {
-		// 	pitch_speed_p = pitch_speed_p + 0.01;
-		// 	pitch_speed.SetTunings(pitch_speed_p, pitch_speed_i, pitch_speed_d);
-		// }
-		// else if (incomingByte == ']') {
-		// 	pitch_speed_p = pitch_speed_p - 0.01;
-		// 	pitch_speed.SetTunings(pitch_speed_p, pitch_speed_i, pitch_speed_d);
-		// }
+		else if (incomingByte == 'o') {
+			height_sonar_p += 0.01;
+		}
+		else if (incomingByte == 'p') {
+			height_sonar_p -= 0.01;
+		}
+		else if (incomingByte == '[') {
+			height_sonar_d += 0.01;
+		}
+		else if (incomingByte == ']') {
+			height_sonar_d -= 0.01;
+		}
+		else if (incomingByte == 'k') {
+			roll_p = roll_p + 0.01;
+			roll_angle.SetTunings(roll_p, 0, 0);
+		}
+		else if (incomingByte == 'l') {
+			roll_p = roll_p - 0.01;
+			roll_angle.SetTunings(roll_p, 0, 0);
+		}
+		else if (incomingByte == ';') {
+			roll_d += 0.01;
+		}
+		else if (incomingByte == '\'') {
+			roll_d -= 0.01;
+		}
 		// else if (incomingByte == ';') {
 		// 	pitch_speed_i = pitch_speed_i + 0.01;
 		// 	pitch_speed.SetTunings(pitch_speed_p, pitch_speed_i, pitch_speed_d);
@@ -441,7 +478,7 @@ void loop() {
 	}
 
 	mpu_get(); // Take nearly 2.4ms to run, once there is an interrupt
-	hmc_get();
+	// hmc_get();
 
 	rc_get(); // Take nearly 0.7ms to run, once calibration is done
 
@@ -456,7 +493,6 @@ void loop() {
 	ms5611_get();
 
 
-	sonar_get();
 
 	mavlink_get();
 
@@ -465,39 +501,56 @@ void loop() {
 		ms5611_alt_average();
 	}
 
-	if (alt_mode_timer >= 100) {
+	if (alt_mode_timer >= 50) {
 		alt_mode_timer = 0;
-		sonar_mode();
 	}
 
 
 	if (rc_time_count >= 10) {
 		rc_time_count = 0;
+		sonar_get();
+		// sonar_mode();
 		motor_adjust();
 		rc_adjust();
 		ms5611_adjust();
-		if (on_ch5 == true)
-			motor_output();
-		else
-			motor_slave_output();
+		// if ((on_ch5 == true) && (ch5_count == 0))
+		// 	motor_output();
+		// else if ((off_ch5 == true) && (ch5_count == 0))
+		// 	motor_output();
+		// 	lock_sonar_altitude = kal_sonar;
+		// else if ((off_ch5 == true) && (ch5_count == 5)) {
+		// 	motor_slave_output();
+		// }
+		// else {
+		// 	motor_output();
+		// }
+		motor_output();
+		if (on_ch5 == true) {
+			remoteMsgReady = true;
+		}
+		else if (off_ch5 == true) {
+			remoteMsgReady = false;
+		}
 		// Serial_throttle();
 	}
 
 	if (hundred_timer >= 100) {
 		hundred_timer = 0;
 		// SerialReceive();
-		SerialSend_pit();
+		// SerialSend_pit();
 		// SerialSend_rol();
 		// SerialSend_yaw();
 		// Serial_rc();
 		// Serial_gyro();
 		// Serial_accel();
 		// Serial_alt();
+		// Serial_att();
 		// Serial_heading();
 		//Serial.println('y');
 		// Serial_slave();
 		// Serial_master();
 		// Serial_mavlink();
+		// Serial_mavlink_test();
 	}
 
 	//send-receive with matlab if it's time
@@ -648,32 +701,94 @@ void SerialSend_yaw()
 
 void Serial_accel()
 {
-	Serial.print("PID ");
-	Serial.print(AcceX);
+	// float Az_G = (kal_rol*Ax + kal_pit*Ay + kal_yaw*Az)/sqrt(Ax*Ax + Ay*Ay + Az*Az) - sqrt(Ax*Ax + Ay*Ay + Az*Az);
+	Serial.print("Accel ");
+	// Serial.print(AcceZ_W); Serial.print(" ");
+	// Serial.print(AcceZ_W); Serial.print(" ");
+	// Serial.print(AcceZ_W); Serial.print(" ");
+	// Serial.print(AcceZ_W); Serial.print(" ");
+	// Serial.print(AcceZ_W); Serial.print(" ");
+	// Serial.print(AcceZ_W); Serial.print(" ");
+	// Serial.print(AcceX_L);
+	// Serial.print(" ");
+	// Serial.print(AcceY_L);
+	// Serial.print(" ");
+	// Serial.print(AcceZ_L);
+	// Serial.print(" ");
+	// Serial.print(AcceX_W);
+	// Serial.print(" ");
+	// Serial.print(AcceY_W);
+	// Serial.print(" ");
+	Serial.print(pitch);
 	Serial.print(" ");
-	Serial.print(AcceY);
+	Serial.print(roll);
 	Serial.print(" ");
-	Serial.print(AcceZ);
+	Serial.print(yaw);
 	Serial.print(" ");
-	Serial.print(Ax);
+	Serial.print(throttle);
 	Serial.print(" ");
-	Serial.print(Ay);
+	Serial.print(ch5);
 	Serial.print(" ");
-	Serial.print(Az);
+	Serial.print(ch6);
 	Serial.print(" ");
+	// Serial.print(Vel_sonar); Serial.print(" ");
+	// Serial.print(Vel_sonar); Serial.print(" ");
+	// Serial.print(Vel_sonar); Serial.print(" ");
+	// Serial.print(Vel_sonar); Serial.print(" ");
+	// Serial.print(Vel_sonar); Serial.print(" ");
+	// Serial.print(Vel_sonar); Serial.print(" ");
+	// Serial.print(Vel_Z); Serial.print(" ");
+	// Serial.print(Vel_Z); Serial.print(" ");
+	// Serial.print(Vel_Z); Serial.print(" ");
+	// Serial.print(Vel_Z); Serial.print(" ");
+	// Serial.print(Vel_Z); Serial.print(" ");
+	// Serial.print(Vel_Z); Serial.print(" ");
+	// Serial.print(pitch_p); Serial.print(" ");
+	// Serial.print(pitch_d); Serial.print(" ");
+	// Serial.print(roll_p); Serial.print(" ");
+	// Serial.print(roll_d); Serial.print(" ");
+	// Serial.print(height_sonar_p); Serial.print(" ");
+	// Serial.print(height_sonar_d); Serial.print(" ");
+	// Serial.print(SonarPID); Serial.print(' ');
+	// Serial.print(SonarPID); Serial.print(' ');
+	// Serial.print(SonarPID); Serial.print(' ');
+	// Serial.print(SonarPID); Serial.print(' ');
+	// Serial.print(SonarPID); Serial.print(' ');
+	// Serial.print(SonarPID); Serial.print(' ');
+	// Serial.print(Vel_sonar); Serial.print(" ");
+	// Serial.print(Vel_sonar); Serial.print(" ");
+	// Serial.print(Vel_sonar); Serial.print(" ");
 	Serial.println("END");
 }
 
 void Serial_alt() {
-	Serial.print("SONAR"); Serial.print(' ');
-	// Serial.print(throttle1); Serial.print(' ');
-	// Serial.print(on_ch5); Serial.print(' ');
+	Serial.print("ALT "); Serial.print(' ');
+	// Serial.print(throttle); Serial.print(' ');
+	// Serial.print(ch5_count); Serial.print(' ');
 	// Serial.print(ch6); Serial.print(' ');
-	// Serial.print(average_altitude); Serial.print(' ');
-	// Serial.print(height_baro_pid_output); Serial.print(' ');
-	Serial.print(kal_sonar); Serial.print(' ');
-	Serial.print(_sonar_mode_altitude); Serial.print(' ');
+	Serial.print(baro_altitude); Serial.print(' ');
+	Serial.print(baro_altitude); Serial.print(' ');
+	Serial.print(baro_altitude); Serial.print(' ');
+	Serial.print(baro_altitude); Serial.print(' ');
+	Serial.print(baro_altitude); Serial.print(' ');
+	Serial.print(baro_altitude); Serial.print(' ');
+	// Serial.print(height_sonar_p); Serial.print(' ');
+	// Serial.print(lock_sonar_altitude); Serial.print(' ');
+	// Serial.print(_sonar_altitude); Serial.print(' ');
+	// Serial.print(_sonar_mode_altitude); Serial.print(' ');
+	// Serial.print(kal_sonar); Serial.print(' ');
+	// Serial.print(_sonar_mode_altitude); Serial.print(' ');
+	// Serial.print(height_sonar_pid_output); Serial.print(' ');
 	Serial.println("END");
+}
+
+void Serial_att() {
+	Serial.print("ATT"); Serial.print(' ');
+	Serial.print(kal_pit); Serial.print(' ');
+	Serial.print(kal_rol); Serial.print(' ');
+	Serial.print(kal_yaw); Serial.print(' ');
+	Serial.println("END");
+
 }
 
 void Serial_heading() {
@@ -719,26 +834,58 @@ void Serial_master() {
 }
 
 void Serial_mavlink() {
-	if (groundMsgReady == 1) {
-		groundMsgReady = 0;
-		Serial.print("MAVLINK ");
-		Serial.print(m_x);
-		Serial.print(" ");
-		Serial.print(m_y);
-		Serial.print(" ");
-		Serial.print(m_z);
-		Serial.print(" ");
-		Serial.print(m_yaw);
-		Serial.print(" ");
-		Serial.print(m_x_change);
-		Serial.print(" ");
-		Serial.print(m_y_change);
-		Serial.print(" ");
-		Serial.print(m_z_change);
-		Serial.print(" ");
-		Serial.print(m_ck);
-		Serial.print(" ");
-		Serial.println("END");
+	Serial.print("MAVLINK ");
+	Serial.print(m_x);
+	Serial.print(" ");
+	Serial.print(m_y);
+	Serial.print(" ");
+	Serial.print(m_z);
+	Serial.print(" ");
+	Serial.print(m_yaw);
+	Serial.print(" ");
+	Serial.print(m_x_change);
+	Serial.print(" ");
+	Serial.print(m_y_change);
+	Serial.print(" ");
+	Serial.print(m_z_change);
+	Serial.print(" ");
+	Serial.print(m_ck);
+	Serial.print(" ");
+	Serial.println("END");
 
-	}
+}
+
+void Serial_mavlink_test() {
+	Serial.print("MAVLINK ");
+	Serial.print(x_p);
+	Serial.print(" ");
+	Serial.print(x_d);
+	Serial.print(" ");
+	Serial.print(y_p);
+	Serial.print(" ");
+	Serial.print(y_d);
+	Serial.print(" ");
+	Serial.print(Ax);
+	Serial.print(" ");
+	Serial.print(Ay);
+	Serial.print(" ");
+	Serial.print(m_x);
+	Serial.print(" ");
+	Serial.print(m_y);
+	Serial.print(" ");
+	Serial.println("END");
+
+}
+
+void Serial_all() {
+	Serial.print("Pitch "); Serial.print(pitch); Serial.print(' '); Serial.println(kal_pit);
+	Serial.print("Roll "); Serial.print(roll); Serial.print(' '); Serial.println(kal_rol);
+	Serial.print("Yaw "); Serial.print(yaw); Serial.print(' '); Serial.println(kal_yaw);
+	Serial.print("Gyro_Pitch "); Serial.println(GyroX);
+	Serial.print("Gyro_Roll "); Serial.println(GyroY);
+	Serial.print("Gyro_Yaw "); Serial.println(GyroZ);
+	Serial.print("Accel_Pitch "); Serial.print(Ay); Serial.print(' '); Serial.println(AcceY);
+	Serial.print("Accel_Roll "); Serial.print(Ax); Serial.print(' '); Serial.println(AcceX);
+	Serial.print("Accel_Z "); Serial.print(Az); Serial.print(' '); Serial.println(AcceZ);
+
 }
