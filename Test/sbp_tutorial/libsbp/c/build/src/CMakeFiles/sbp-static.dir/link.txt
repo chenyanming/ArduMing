@@ -1,0 +1,2 @@
+/usr/bin/ar cr libsbp-static.a  CMakeFiles/sbp-static.dir/edc.c.o CMakeFiles/sbp-static.dir/sbp.c.o
+/usr/bin/ranlib libsbp-static.a

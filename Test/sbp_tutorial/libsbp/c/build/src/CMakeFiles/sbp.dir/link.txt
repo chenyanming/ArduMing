@@ -1,0 +1,1 @@
+/usr/bin/cc  -Wall -Wextra -Wno-strict-prototypes -Wno-unknown-warning-option -Werror -std=gnu99  -dynamiclib -Wl,-headerpad_max_install_names   -o libsbp.dylib -install_name /Users/chandamon/ArduMing/Test/sbp_tutorial/libsbp/c/build/src/libsbp.dylib CMakeFiles/sbp.dir/edc.c.o CMakeFiles/sbp.dir/sbp.c.o 
