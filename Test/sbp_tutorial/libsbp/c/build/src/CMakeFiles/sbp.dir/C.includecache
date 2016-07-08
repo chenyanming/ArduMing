@@ -1,0 +1,34 @@
+#IncludeRegexLine: ^[ 	]*#[ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+../include/libsbp/common.h
+stdint.h
+-
+stdbool.h
+-
+inttypes.h
+-
+
+../include/libsbp/edc.h
+common.h
+../include/libsbp/common.h
+
+../include/libsbp/sbp.h
+common.h
+../include/libsbp/common.h
+
+/Users/chandamon/ArduMing/Test/sbp_tutorial/libsbp/c/src/edc.c
+libsbp/edc.h
+/Users/chandamon/ArduMing/Test/sbp_tutorial/libsbp/c/src/libsbp/edc.h
+
+/Users/chandamon/ArduMing/Test/sbp_tutorial/libsbp/c/src/sbp.c
+libsbp/edc.h
+/Users/chandamon/ArduMing/Test/sbp_tutorial/libsbp/c/src/libsbp/edc.h
+libsbp/sbp.h
+/Users/chandamon/ArduMing/Test/sbp_tutorial/libsbp/c/src/libsbp/sbp.h
+

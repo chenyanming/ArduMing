@@ -33,12 +33,21 @@ float kal_yaw = 0;
 
 int round_timer = 0;
 
-int AcceX = 0; 
+int AcceX = 0;
 int AcceY = 0;
 int AcceZ = 0;
 float Ax = 0;
 float Ay = 0;
 float Az = 0;
+int AcceX_L = 0;
+int AcceY_L = 0;
+int AcceZ_L = 0;
+float AcceW_W = 0;
+float AcceX_W = 0;
+float AcceY_W = 0;
+float AcceZ_W = 0;
+float Vel_Z = 0, pre_Vel_Z = 0;
+long current_time = 0, previous_time = 0;
 
 /* ================================================================================================ *\
  | Default MotionApps v2.0 42-byte FIFO packet structure (each value consists of 2 bytes):          |
@@ -1216,6 +1225,8 @@ unsigned int mpu_get() {
 			rpy_pit = - (rpy_pit * 180 / M_PI);
 			rpy_rol = rpy_rol * 180 / M_PI;
 			rpy_yaw = rpy_yaw * 180 / M_PI;
+			// right shift 360 degrees to make yaw positive
+			// rpy_yaw += 360;
 			// kal_yaw = map(rpy_yaw, -180, 180, 0, 360);
 
 			//Kalman cal
@@ -1239,16 +1250,16 @@ unsigned int mpu_get() {
 
 // #endif
 
-#ifdef OUTPUT_RAW_ACCEL
-			// print accelerometer values from fifoBuffer
-			int AcceX = ((fifoBuffer[28] << 8) + fifoBuffer[29]);
-			int AcceY = ((fifoBuffer[32] << 8) + fifoBuffer[33]);
-			int AcceZ = ((fifoBuffer[36] << 8) + fifoBuffer[37]);
-			Serial.print("Raw acceleration ax, ay, az [8192 = 1 g]: "); Serial.print("\t\t");
-			Serial.print  (AcceX); Serial.print("\t");
-			Serial.print  (AcceY); Serial.print("\t");
-			Serial.println(AcceZ);
-#endif
+// #ifdef OUTPUT_RAW_ACCEL
+// 			// print accelerometer values from fifoBuffer
+// 			int AcceX = ((fifoBuffer[28] << 8) + fifoBuffer[29]);
+// 			int AcceY = ((fifoBuffer[32] << 8) + fifoBuffer[33]);
+// 			int AcceZ = ((fifoBuffer[36] << 8) + fifoBuffer[37]);
+// 			Serial.print("Raw acceleration ax, ay, az [8192 = 1 g]: "); Serial.print("\t\t");
+// 			Serial.print  (AcceX); Serial.print("\t");
+// 			Serial.print  (AcceY); Serial.print("\t");
+// 			Serial.println(AcceZ);
+// #endif
 
 // #ifdef OUTPUT_RAW_ACCEL_G
 			// same as OUTPUT_RAW_ACCEL but recalculated to g-force values
@@ -1263,6 +1274,58 @@ unsigned int mpu_get() {
 			// Serial.print  (Ay, 3); Serial.print("\t");
 			// Serial.println(Az, 3);
 // #endif
+			//+1g = +8192 in standare DMP FIFO packet
+			AcceX_L = AcceX - grav_x * 8192;
+			AcceY_L = AcceY - grav_y * 8192;
+			AcceZ_L = AcceZ - grav_z * 8192;
+
+			// p = q * p
+			int AcceW_L_tmp = q_w * 0 		- q_x * AcceX_L - q_y * AcceY_L - q_z * AcceZ_L; // new w
+			int AcceX_L_tmp = q_w * AcceX_L + q_x * 0 		+ q_y * AcceZ_L - q_z * AcceY_L; // new x
+			int AcceY_L_tmp = q_w * AcceY_L - q_x * AcceZ_L + q_y * 0 		+ q_z * AcceX_L; // new y
+			int AcceZ_L_tmp = q_w * AcceZ_L + q_x * AcceY_L - q_y * AcceX_L + q_z * 0; // new z
+
+			// conj(q)
+			float q_w_tmp = q_w;
+			float q_x_tmp = -q_x;
+			float q_y_tmp = -q_y;
+			float q_z_tmp = -q_z;
+
+			// p * conj(q)
+			AcceW_W = AcceW_L_tmp * q_w_tmp - AcceX_L_tmp * q_x_tmp - AcceY_L_tmp * q_y_tmp - AcceZ_L_tmp * q_z_tmp; // new w
+			AcceX_W = AcceW_L_tmp * q_x_tmp + AcceX_L_tmp * q_w_tmp + AcceY_L_tmp * q_z_tmp - AcceZ_L_tmp * q_y_tmp; // new x
+			AcceY_W = AcceW_L_tmp * q_y_tmp - AcceX_L_tmp * q_z_tmp + AcceY_L_tmp * q_w_tmp + AcceZ_L_tmp * q_x_tmp; // new y
+			AcceZ_W = AcceW_L_tmp * q_z_tmp + AcceX_L_tmp * q_y_tmp - AcceY_L_tmp * q_x_tmp + AcceZ_L_tmp * q_w_tmp; // new z
+			// AcceZ_W = AcceZ_W / 8192.0f;
+
+			// LPF
+			static int accZoffset = 0;
+			accZoffset -= accZoffset / 16;
+			accZoffset += AcceZ_W;
+			AcceZ_W = accZoffset / 16;
+
+			// 1G and scale 100
+			AcceZ_W = (AcceZ_W / 8192.0f) * 100;
+			
+			// shift
+			AcceZ_W = AcceZ_W - 4;
+			if (abs(AcceZ_W) < 1) {
+				AcceZ_W = 0;
+			}
+
+			// Velocity
+			current_time = millis();
+			// 10s to be stable
+			if (current_time > 10000) {
+				Vel_Z += AcceZ_W * (current_time - previous_time);
+				Vel_Z = pre_Vel_Z * 0.985 + Vel_sonar * 0.015;
+				// Dead band
+				// if (abs(Vel_Z) < 1) {
+				// 	Vel_Z = 0;
+				// }
+				pre_Vel_Z = Vel_Z;
+			}
+			previous_time = current_time;
 
 #if 0
 #ifdef OUTPUT_RAW_ANGLES

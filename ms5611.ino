@@ -47,8 +47,11 @@ boolean convert_ready_toggle = false;
 
 // ms5611 average alt
 unsigned char alt_average_count = 0;
-float average_altitude = 0; 
+float average_altitude = 0;
 float tmp_altitude[10];
+
+
+float baro_altitude = 0;
 
 void ms5611_setup() {
 	// Serial.begin(115200);	// Set the baud rate to 115200
@@ -275,6 +278,14 @@ void ms5611_get() {
 		temp = ms5611_get_temperature();
 		pressure = ms5611_get_pressure();
 		altitude = ms5611_get_altitude();
+		// scale to cm
+		baro_altitude = altitude * 100;
+
+		// LPF
+		static int altoffset = 0;
+		altoffset -= altoffset / 100;
+		altoffset += baro_altitude;
+		baro_altitude = altoffset / 100;
 
 		// double dt = (double)(micros() - timer_h) / 1000000;
 		// timer_h = micros();

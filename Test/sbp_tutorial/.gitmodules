@@ -1,0 +1,3 @@
+[submodule "libsbp"]
+	path = libsbp
+	url = https://github.com/swift-nav/libsbp/

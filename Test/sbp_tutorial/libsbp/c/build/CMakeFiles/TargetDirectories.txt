@@ -1,0 +1,2 @@
+/Users/chandamon/ArduMing/Test/sbp_tutorial/libsbp/c/build/src/CMakeFiles/sbp.dir
+/Users/chandamon/ArduMing/Test/sbp_tutorial/libsbp/c/build/src/CMakeFiles/sbp-static.dir

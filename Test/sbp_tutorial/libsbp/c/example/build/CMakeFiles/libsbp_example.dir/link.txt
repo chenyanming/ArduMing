@@ -1,0 +1,1 @@
+/usr/bin/cc  -Wall -Wextra -Wno-strict-prototypes -Wno-unknown-warning-option -Werror -std=gnu99  -Wl,-search_paths_first -Wl,-headerpad_max_install_names   CMakeFiles/libsbp_example.dir/example.c.o  -o libsbp_example  -lserialport -lsbp 

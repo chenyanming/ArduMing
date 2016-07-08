@@ -19,17 +19,19 @@ const int ROLL_MAP_MIN = -20;
 const int ROLL_MAP_MAX = 20;
 const int PITCH_MAP_MIN = -20;
 const int PITCH_MAP_MAX = 20;
-const int YAW_MAP_MIN = -45;
+const int YAW_MAP_MIN = -60;
 const int YAW_MAP_MAX = 45;
 
-const int MAX_SIGNAL = 1900;
+const int MAX_SIGNAL = 1600;
 const int MIN_SIGNAL = 1000;
 
-const int CH6_MAP_MIN = 0;
-const int CH6_MAP_MAX = 20;
+const float CH6_MAP_MIN = 0;
+const float CH6_MAP_MAX = 50;
 
 float roll, pitch, throttle, yaw, ch5, ch6;
 boolean on_ch5 = false; // suppose that the ch5 is off
+boolean off_ch5 = false;
+unsigned int ch5_count = 0;
 float max_yaw, min_yaw, yaw_bottle, last_yaw_bottle;
 float yaw_tmp[5];
 const int inputCapturePin = 48; // input pin fixed to internal Timer
@@ -46,7 +48,7 @@ static volatile byte save = 0; // 0 disables save captured data, 1 enables
 static volatile unsigned int results[numberOfEntries]; // note this is 16 bit value
 static volatile double millis_duration[numberOfEntries]; // note this is 16 bit value
 
-static int rc_adjust_count = 1000;
+static int rc_adjust_count = 1000;//10s
 static int pitch_adjust = 0;
 static int roll_adjust = 0;
 static int yaw_adjust = 0;
@@ -156,11 +158,29 @@ void rc_get() {
     pitch = map(results[4], PITCH_MIN, PITCH_MAX, PITCH_MAP_MIN, PITCH_MAP_MAX) + pitch_adjust;
     throttle = map(results[6], THROTTLE_MIN, THROTTLE_MAX, MIN_SIGNAL, MAX_SIGNAL);
     throttle = constrain(throttle, MIN_SIGNAL, MAX_SIGNAL);
+    // LPF for throttle
+    static int throttle_offset = 0;
+    throttle_offset -= throttle_offset / 8;
+    throttle_offset += throttle;
+    throttle = throttle_offset / 8;
+
+
     ch5 = results[10];
-    if (ch5 > 2000)
+    if (ch5 > 2000) {
       on_ch5 = true; // ch5 is on (3222)
-    else
-      on_ch5 = false; // ch5 is off (1111)
+      if(off_ch5 == true){
+        off_ch5 = false;
+        ch5_count++;
+        if(ch5_count > 5)
+          ch5_count = 0;
+      }
+    }
+    else {
+      // on_ch5 = false; // ch5 is off (1111)
+      off_ch5 = true; // ch5 is off (1111)
+      if(on_ch5 == true)
+        on_ch5 = false;
+    }
     ch6 = mapfloat(results[12], CH6_MIN, CH6_MAX, CH6_MAP_MIN, CH6_MAP_MAX);
     ch6 = constrain(ch6, CH6_MAP_MIN, CH6_MAP_MAX);
     yaw = map(results[8], YAW_MIN, YAW_MAX, YAW_MAP_MIN, YAW_MAP_MAX) + yaw_adjust;
@@ -175,7 +195,7 @@ void rc_get() {
     /*
      ** Filter out the unstable value, it is vital for later capture
      */
-    if ((kal_rc_yaw <= 5) && (kal_rc_yaw >= -5)) {
+    if ((kal_rc_yaw <= 7) && (kal_rc_yaw >= -7)) {
       kal_rc_yaw = 0;
     }
 
@@ -210,7 +230,7 @@ void rc_get() {
      * start the timer
      */
     if (min_yaw_timer == 0) { // Before set the timer, make sure the counter is equal to zero!
-      min_yaw_timer = 100;
+      min_yaw_timer = 120;
     }
 
     /*

@@ -27,6 +27,7 @@ volatile unsigned int rc_time_count = 0;	//The RC running time
 volatile unsigned int ch6_count = 0;	//The ch6 detect time
 volatile unsigned int alt_average_timer = 0;
 volatile unsigned int hundred_timer = 0;
+volatile unsigned int alt_mode_timer = 0;
 
 // yaw
 unsigned char yaw_status = 0;
@@ -34,8 +35,11 @@ extern float first_kal_yaw, relative_yaw, max_yaw, kal_rc_yaw;
 volatile unsigned int min_yaw_timer = 0;
 extern int round_timer;
 
+// ch5
+boolean remoteMsgReady = false;
+
 // ch6
-unsigned int last_ch6_p = 0;
+unsigned int last_ch6;
 unsigned int last_ch6_d = 0;
 
 // hold altitude
@@ -43,6 +47,17 @@ volatile unsigned int alt_hold_count = 0;
 
 // Print
 unsigned long serialTime;
+
+// Serial2
+unsigned char serial2_rev_buf[50];
+unsigned char rev_i = 0, rev_j = 0, comma = 0;
+boolean rev_unhealthy = false;
+unsigned char FL_tmp[4];
+unsigned char BL_tmp[4];
+unsigned char FR_tmp[4];
+unsigned char BR_tmp[4];
+unsigned int FL = 0, BL = 0, FR = 0, BR = 0;
+
 
 /**
  * @param {N/A} TIMER2_OVF_vect [Timer2 Overflow Interrupt Vector, called every 1ms]
@@ -52,6 +67,7 @@ ISR(TIMER2_OVF_vect) {
 	rc_time_count++;
 	alt_average_timer++;
 	hundred_timer++;
+	alt_mode_timer++;
 
 	/*
 	 * Dectect the yaw stick value when pilot release, and when is the real 0 point which is not detected after release the yaw stick
@@ -84,13 +100,31 @@ ISR(TIMER2_OVF_vect) {
 
 	ch6_count++;
 	if (ch6_count >= 300) {
-		pitch_angle.SetTunings(1.84, 0.18, 0);
-		roll_angle.SetTunings(1.84, 0.18, 0);
+		// pitch_angle.SetTunings(1.84, 0.18, 0);
+		// roll_angle.SetTunings(1.84, 0.18, 0);
 		// yaw_angle.SetTunings(1 + last_ch6_p, 0, 0);
 		// last_ch6_p = ch6;
-		yaw_angle.SetTunings(2.5, 0, 0);
+		// yaw_angle.SetTunings(2.5, 0, 0);
 
-		height_baro.SetTunings(ch6, 0, 0);
+		// height_baro.SetTunings(ch6, 0, 0);
+		// height_sonar.SetTunings(2, 0, 1);
+		// height_sonar_2.SetTunings(0.5, 0, 0.5);
+
+		// x_p = 2 + ch6;
+		// y_p = 2 + ch6;
+		// pid_x.SetTunings(x_p, 0, 0);
+		// pid_y.SetTunings(y_p, 0, 0);
+		// x_d = 0.5 + ch6;
+		// y_d = 0.5 + ch6;
+
+
+		if (abs(ch6 - last_ch6) >= 0.01) {
+			// roll_d = ch6;
+			// height_sonar_d = ch6;
+			// height_sonar.SetTunings(height_sonar_p, 0, height_sonar_d);
+
+		}
+		last_ch6 = ch6;
 
 		ch6_count = 0;
 	}
@@ -137,8 +171,9 @@ ISR(TIMER2_OVF_vect) {
 
 void setup()
 {
-	Serial.begin(115200);	// Set the baud rate to 115200
-	Serial2.begin(57600);
+	Serial.begin(57600);	// Set the baud rate to 115200
+	Serial1.begin(57600);    // 3DR
+	Serial2.begin(115200);	// Used to communicate with the Slave
 
 	rc_setup();
 	motor_setup();
@@ -242,10 +277,13 @@ void setup()
 	boolean hmcStatus;
 	hmcStatus = hmc_setup();
 	if (hmcStatus == false) {
-		Serial.print("HMC Initialization failed (code ");
-		Serial.print(hmcStatus);
-		Serial.println(")");
+		// Serial.print("HMC Initialization failed (code ");
+		// Serial.print(hmcStatus);
+		// Serial.println(")");
 	}
+
+	// Sonar
+	sonar_setup();
 
 	// Serial.println("############# LOOP... ##############");
 	mpu_time_count = 0;
@@ -255,23 +293,183 @@ void setup()
 void loop() {
 	// long dump, dump1;
 	// dump = micros();
-	// int rev, incomingByte;
+	int rev, incomingByte;
 
-	// if (rev = Serial.available()) {
-	// 	incomingByte = Serial.read();
-	// 	if (incomingByte == 'r') {
-	// 		redled_state = !redled_state;
-	// 		digitalWrite(redled, redled_state);
-	// 	}
-	// 	else if (incomingByte == 'b') {
-	// 		blueled_state = !blueled_state;
-	// 		digitalWrite(blueled, blueled_state);
-	// 	}
-	// 	else if (incomingByte == 'y') {
-	// 		yellowled_state = !yellowled_state;
-	// 		digitalWrite(yellowled, yellowled_state);
-	// 	}
-	// }
+	if (rev = Serial.available()) {
+		incomingByte = Serial.read();
+		// if (incomingByte == 'r') {
+		// 	redled_state = !redled_state;
+		// 	digitalWrite(redled, redled_state);
+		// }
+		// else if (incomingByte == 'b') {
+		// 	blueled_state = !blueled_state;
+		// 	digitalWrite(blueled, blueled_state);
+		// }
+		// else if (incomingByte == 'y') {
+		// 	yellowled_state = !yellowled_state;
+		// 	digitalWrite(yellowled, yellowled_state);
+		// }
+
+		if (incomingByte == '9') {
+			pitch_p = pitch_p + 0.01;
+			pitch_angle.SetTunings(pitch_p, 0, 0);
+		}
+		else if (incomingByte == '0') {
+			pitch_p = pitch_p - 0.01;
+			pitch_angle.SetTunings(pitch_p, 0, 0);
+		}
+		else if (incomingByte == '-') {
+			pitch_d += 0.01;
+		}
+		else if (incomingByte == '=') {
+			pitch_d -= 0.01;
+		}
+		else if (incomingByte == 'o') {
+			height_sonar_p += 0.01;
+		}
+		else if (incomingByte == 'p') {
+			height_sonar_p -= 0.01;
+		}
+		else if (incomingByte == '[') {
+			height_sonar_d += 0.01;
+		}
+		else if (incomingByte == ']') {
+			height_sonar_d -= 0.01;
+		}
+		else if (incomingByte == 'k') {
+			roll_p = roll_p + 0.01;
+			roll_angle.SetTunings(roll_p, 0, 0);
+		}
+		else if (incomingByte == 'l') {
+			roll_p = roll_p - 0.01;
+			roll_angle.SetTunings(roll_p, 0, 0);
+		}
+		else if (incomingByte == ';') {
+			roll_d += 0.01;
+		}
+		else if (incomingByte == '\'') {
+			roll_d -= 0.01;
+		}
+		// else if (incomingByte == ';') {
+		// 	pitch_speed_i = pitch_speed_i + 0.01;
+		// 	pitch_speed.SetTunings(pitch_speed_p, pitch_speed_i, pitch_speed_d);
+		// }
+		// else if (incomingByte == '\'') {
+		// 	pitch_speed_i = pitch_speed_i - 0.01;
+		// 	pitch_speed.SetTunings(pitch_speed_p, pitch_speed_i, pitch_speed_d);
+		// }
+		// else if (incomingByte == '.') {
+		// 	pitch_speed_d = pitch_speed_d + 0.01;
+		// 	pitch_speed.SetTunings(pitch_speed_p, pitch_speed_i, pitch_speed_d);
+		// }
+		// else if (incomingByte == '/') {
+		// 	pitch_speed_d = pitch_speed_d - 0.01;
+		// 	pitch_speed.SetTunings(pitch_speed_p, pitch_speed_i, pitch_speed_d);
+		// }
+
+		// if (incomingByte == '-') {
+		// 	roll_p = roll_p + 0.01;
+		// 	roll_angle.SetTunings(roll_p, 0, 0);
+		// }
+		// else if (incomingByte == '=') {
+		// 	roll_p = roll_p - 0.01;
+		// 	roll_angle.SetTunings(roll_p, 0, 0);
+		// 	}
+
+	}
+
+	while (Serial2.available() > 0) {
+		serial2_rev_buf[rev_i] = Serial2.read();
+		// if (serial2_rev_buf[rev_i] == ',') {
+		// 	rev_j = 0;
+		// 	comma++;
+		// }
+		// else if (serial2_rev_buf[rev_i] == '\n') {
+		if (serial2_rev_buf[rev_i] == '\n') {
+			// for (int j = 0; j < rev_i; j++) {
+			// 	Serial.write(serial2_rev_buf[j]);
+			// }
+			// Serial.println();
+
+			for (int i = 0; i < 4; i++) {
+				for (int j = 0; j < 4; j++) {
+					if (serial2_rev_buf[5 * i + j] < '0' || serial2_rev_buf[5 * i + j] > '9') {
+						rev_unhealthy = true;
+					}
+				}
+			}
+			if (rev_unhealthy == false) {
+				FL = (serial2_rev_buf[0] - '0') * 1000 + (serial2_rev_buf[1] - '0') * 100 + (serial2_rev_buf[2] - '0') * 10 + (serial2_rev_buf[3] - '0') * 1;
+				BL = (serial2_rev_buf[5] - '0') * 1000 + (serial2_rev_buf[6] - '0') * 100 + (serial2_rev_buf[7] - '0') * 10 + (serial2_rev_buf[8] - '0') * 1;
+				BR = (serial2_rev_buf[10] - '0') * 1000 + (serial2_rev_buf[11] - '0') * 100 + (serial2_rev_buf[12] - '0') * 10 + (serial2_rev_buf[13] - '0') * 1;
+				FR = (serial2_rev_buf[15] - '0') * 1000 + (serial2_rev_buf[16] - '0') * 100 + (serial2_rev_buf[17] - '0') * 10 + (serial2_rev_buf[18] - '0') * 1;
+				// Serial.print(FL);
+				// Serial.print(' ');
+				// Serial.print(BL);
+				// Serial.print(' ');
+				// Serial.print(FR);
+				// Serial.print(' ');
+				// Serial.println(BR);
+			}
+			else {
+				rev_unhealthy = false;
+				FL = FL;
+				BL = BL;
+				BR = BR;
+				FR = FR;
+			}
+
+
+			rev_i = 0;
+			// rev_j = 0;
+			// comma = 0;
+			break;
+		}
+		// else if ((serial2_rev_buf[rev_i] <= '9') && (serial2_rev_buf[rev_i] >= '0')) {
+		// 	switch (comma) {
+		// 	case 0:
+		// 		FL_tmp[rev_j] = serial2_rev_buf[rev_i];
+		// 		if (rev_j == 3)
+		// 			FL = (FL_tmp[0] - '0') * 1000 + (FL_tmp[1] - '0') * 100 + (FL_tmp[2] - '0') * 10 + (FL_tmp[3] - '0') * 1;
+		// 		rev_j++;
+		// 		break;
+		// 	case 1:
+		// 		BL_tmp[rev_j] = serial2_rev_buf[rev_i];
+		// 		if (rev_j == 3)
+		// 			BL = (BL_tmp[0] - '0') * 1000 + (BL_tmp[1] - '0') * 100 + (BL_tmp[2] - '0') * 10 + (BL_tmp[3] - '0') * 1;
+		// 		rev_j++;
+		// 		break;
+		// 	case 2:
+		// 		FR_tmp[rev_j] = serial2_rev_buf[rev_i];
+		// 		if (rev_j == 3)
+		// 			FR = (FR_tmp[0] - '0') * 1000 + (FR_tmp[1] - '0') * 100 + (FR_tmp[2] - '0') * 10 + (FR_tmp[3] - '0') * 1;
+		// 		rev_j++;
+		// 		break;
+		// 	case 3:
+		// 		BR_tmp[rev_j] = serial2_rev_buf[rev_i];
+		// 		if (rev_j == 3)
+		// 			BR = (BR_tmp[0] - '0') * 1000 + (BR_tmp[1] - '0') * 100 + (BR_tmp[2] - '0') * 10 + (BR_tmp[3] - '0') * 1;
+		// 		rev_j++;
+		// 		break;
+		// 	default:
+		// 		break;
+		// 	}
+		// }
+		// else if (serial2_rev_buf[rev_i] < '0' || serial2_rev_buf[rev_i] > '9') {
+		// 	rev_i = 0;
+		// 	break;
+		// }
+		// else {
+		// comma = 0;
+		// rev_i = 0;
+		// rev_j = 0;
+		// break;
+		// }
+		if (rev_i == 49)
+			rev_i = 0;
+		rev_i++;
+	}
+
 
 	// if DMP initialization during setup failed, don't try to do anything
 	if (!dmpReady)
@@ -280,7 +478,7 @@ void loop() {
 	}
 
 	mpu_get(); // Take nearly 2.4ms to run, once there is an interrupt
-	hmc_get();
+	// hmc_get();
 
 	rc_get(); // Take nearly 0.7ms to run, once calibration is done
 
@@ -295,20 +493,45 @@ void loop() {
 	ms5611_get();
 
 
-	// sonar_get();
+
+	mavlink_get();
 
 	if (alt_average_timer >= 30) {
 		alt_average_timer = 0;
 		ms5611_alt_average();
 	}
 
+	if (alt_mode_timer >= 50) {
+		alt_mode_timer = 0;
+	}
+
 
 	if (rc_time_count >= 10) {
 		rc_time_count = 0;
+		sonar_get();
+		// sonar_mode();
 		motor_adjust();
 		rc_adjust();
 		ms5611_adjust();
+		// if ((on_ch5 == true) && (ch5_count == 0))
+		// 	motor_output();
+		// else if ((off_ch5 == true) && (ch5_count == 0))
+		// 	motor_output();
+		// 	lock_sonar_altitude = kal_sonar;
+		// else if ((off_ch5 == true) && (ch5_count == 5)) {
+		// 	motor_slave_output();
+		// }
+		// else {
+		// 	motor_output();
+		// }
 		motor_output();
+		if (on_ch5 == true) {
+			remoteMsgReady = true;
+		}
+		else if (off_ch5 == true) {
+			remoteMsgReady = false;
+		}
+		// Serial_throttle();
 	}
 
 	if (hundred_timer >= 100) {
@@ -320,9 +543,14 @@ void loop() {
 		// Serial_rc();
 		// Serial_gyro();
 		// Serial_accel();
-		Serial_alt();
+		// Serial_alt();
+		// Serial_att();
 		// Serial_heading();
-		// Serial2.println("testing...");
+		//Serial.println('y');
+		// Serial_slave();
+		// Serial_master();
+		// Serial_mavlink();
+		// Serial_mavlink_test();
 	}
 
 	//send-receive with matlab if it's time
@@ -345,85 +573,6 @@ void loop() {
 	// Serial.println(dump1 - dump);
 } // End of loop()
 
-
-#if 0
-
-/********************************************
- * Serial Communication functions / helpers
- ********************************************/
-
-
-union {                // This Data structure lets
-	byte asBytes[24];    // us take the byte array
-	float asFloat[6];    // sent from processing and
-}                      // easily convert it to a
-foo;                   // float array
-
-
-// getting float values from processing into the arduino
-// was no small task.  the way this program does it is
-// as follows:
-//  * a float takes up 4 bytes.  in processing, convert
-//    the array of floats we want to send, into an array
-//    of bytes.
-//  * send the bytes to the arduino
-//  * use a data structure known as a union to convert
-//    the array of bytes back into an array of floats
-
-//  the bytes coming from the arduino follow the following
-//  format:
-//  0: 0=Manual, 1=Auto, else = ? error ?
-//  1: 0=Direct, 1=Reverse, else = ? error ?
-//  2-5: float pitch
-//  6-9: float input
-//  10-13: float output
-//  14-17: float P_Param
-//  18-21: float I_Param
-//  22-245: float D_Param
-void SerialReceive()
-{
-
-	// read the bytes sent from Processing
-	int index = 0;
-	byte Auto_Man = -1;
-	byte Direct_Reverse = -1;
-	while (Serial.available() && index < 26)
-	{
-		if (index == 0) Auto_Man = Serial.read();
-		else if (index == 1) Direct_Reverse = Serial.read();
-		else foo.asBytes[index - 2] = Serial.read();
-		index++;
-	}
-
-	// if the information we got was in the correct format,
-	// read it into the system
-	if (index == 26  && (Auto_Man == 0 || Auto_Man == 1) && (Direct_Reverse == 0 || Direct_Reverse == 1))
-	{
-		pitch = double(foo.asFloat[0]);
-		//Input=double(foo.asFloat[1]);       // * the user has the ability to send the
-		//   value of "Input"  in most cases (as
-		//   in this one) this is not needed.
-		if (Auto_Man == 0)                    // * only change the output if we are in
-		{	//   manual mode.  otherwise we'll get an
-			pitch_angle_pid_output = double(foo.asFloat[2]);    //   output blip, then the controller will
-		}                                     //   overwrite.
-
-		double p, i, d;                       // * read in and set the controller tunings
-		p = double(foo.asFloat[3]);           //
-		i = double(foo.asFloat[4]);           //
-		d = double(foo.asFloat[5]);           //
-		pitch_angle.SetTunings(p, i, d);            //
-
-		if (Auto_Man == 0) pitch_angle.SetMode(MANUAL); // * set the controller mode
-		else pitch_angle.SetMode(AUTOMATIC);             //
-
-		if (Direct_Reverse == 0) pitch_angle.SetControllerDirection(DIRECT); // * set the controller Direction
-		else pitch_angle.SetControllerDirection(REVERSE);          //
-	}
-	Serial.flush();                         // * clear any random data from the serial buffer
-}
-#endif
-
 void Serial_rc() {
 
 	Serial.print("Getting the remote control value : ");
@@ -436,10 +585,14 @@ void Serial_rc() {
 }
 
 void Serial_gyro() {
-	Serial.print("Raw gyro rotation ax, ay, az [value/deg/s]: "); Serial.print("\t\t");
-	Serial.print(GyroX); Serial.print("\t");
-	Serial.print(GyroY); Serial.print("\t");
-	Serial.println(GyroZ);
+	Serial.print("PID ");
+	Serial.print(GyroX);
+	Serial.print(" ");
+	Serial.print(GyroY);
+	Serial.print(" ");
+	Serial.print(GyroZ);
+	Serial.print(" ");
+	Serial.println("END");
 }
 
 void Serial_pitch() {
@@ -455,9 +608,19 @@ void SerialSend_pit()
 	Serial.print(" ");
 	Serial.print(kal_pit);
 	Serial.print(" ");
+	Serial.print(pitch_p);
+	Serial.print(" ");
+	Serial.print(pitch_d);
+	Serial.print(" ");
+	// Serial.print(pitch_speed_p);
+	// Serial.print(" ");
+	// Serial.print(pitch_speed_i);
+	// Serial.print(" ");
+	// Serial.print(pitch_speed_d);
+	// Serial.print(" ");
 	Serial.print(pitch_angle_pid_output);
 	Serial.print(" ");
-	// Serial.print(roll);
+	// Serial.print(pitch_speed_pid_output);
 	// Serial.print(" ");
 	// Serial.print(float(throttle3) / 1000);
 	// Serial.print(" ");
@@ -465,8 +628,8 @@ void SerialSend_pit()
 	// Serial.print(" ");
 	// Serial.print(rpy_yaw);
 	// Serial.print(" ");
-	Serial.print(ch6);
-	Serial.print(" ");
+	// Serial.print(ch6);
+	// Serial.print(" ");
 	// Serial.print(pitch_angle.GetKi());
 	// Serial.print(" ");
 	// Serial.print(pitch_angle.GetKd());
@@ -486,10 +649,14 @@ void SerialSend_rol()
 	Serial.print(" ");
 	Serial.print(kal_rol);
 	Serial.print(" ");
-	Serial.print(roll_angle_pid_output);
+	Serial.print(roll_p);
 	Serial.print(" ");
-	Serial.print(float(throttle2) / 1000);
+	Serial.print(ch6);
 	Serial.print(" ");
+	// Serial.print(roll_angle_pid_output);
+	// Serial.print(" ");
+	// Serial.print(float(throttle2) / 1000);
+	// Serial.print(" ");
 	// Serial.print(float(throttle4) / 1000);
 	// Serial.print(" ");
 	// Serial.print(GyroY);
@@ -534,31 +701,94 @@ void SerialSend_yaw()
 
 void Serial_accel()
 {
-	Serial.print("PID ");
-	Serial.print(AcceX);
+	// float Az_G = (kal_rol*Ax + kal_pit*Ay + kal_yaw*Az)/sqrt(Ax*Ax + Ay*Ay + Az*Az) - sqrt(Ax*Ax + Ay*Ay + Az*Az);
+	Serial.print("Accel ");
+	// Serial.print(AcceZ_W); Serial.print(" ");
+	// Serial.print(AcceZ_W); Serial.print(" ");
+	// Serial.print(AcceZ_W); Serial.print(" ");
+	// Serial.print(AcceZ_W); Serial.print(" ");
+	// Serial.print(AcceZ_W); Serial.print(" ");
+	// Serial.print(AcceZ_W); Serial.print(" ");
+	// Serial.print(AcceX_L);
+	// Serial.print(" ");
+	// Serial.print(AcceY_L);
+	// Serial.print(" ");
+	// Serial.print(AcceZ_L);
+	// Serial.print(" ");
+	// Serial.print(AcceX_W);
+	// Serial.print(" ");
+	// Serial.print(AcceY_W);
+	// Serial.print(" ");
+	Serial.print(pitch);
 	Serial.print(" ");
-	Serial.print(AcceY);
+	Serial.print(roll);
 	Serial.print(" ");
-	Serial.print(AcceZ);
+	Serial.print(yaw);
 	Serial.print(" ");
-	Serial.print(Ax);
+	Serial.print(throttle);
 	Serial.print(" ");
-	Serial.print(Ay);
+	Serial.print(ch5);
 	Serial.print(" ");
-	Serial.print(Az);
+	Serial.print(ch6);
 	Serial.print(" ");
+	// Serial.print(Vel_sonar); Serial.print(" ");
+	// Serial.print(Vel_sonar); Serial.print(" ");
+	// Serial.print(Vel_sonar); Serial.print(" ");
+	// Serial.print(Vel_sonar); Serial.print(" ");
+	// Serial.print(Vel_sonar); Serial.print(" ");
+	// Serial.print(Vel_sonar); Serial.print(" ");
+	// Serial.print(Vel_Z); Serial.print(" ");
+	// Serial.print(Vel_Z); Serial.print(" ");
+	// Serial.print(Vel_Z); Serial.print(" ");
+	// Serial.print(Vel_Z); Serial.print(" ");
+	// Serial.print(Vel_Z); Serial.print(" ");
+	// Serial.print(Vel_Z); Serial.print(" ");
+	// Serial.print(pitch_p); Serial.print(" ");
+	// Serial.print(pitch_d); Serial.print(" ");
+	// Serial.print(roll_p); Serial.print(" ");
+	// Serial.print(roll_d); Serial.print(" ");
+	// Serial.print(height_sonar_p); Serial.print(" ");
+	// Serial.print(height_sonar_d); Serial.print(" ");
+	// Serial.print(SonarPID); Serial.print(' ');
+	// Serial.print(SonarPID); Serial.print(' ');
+	// Serial.print(SonarPID); Serial.print(' ');
+	// Serial.print(SonarPID); Serial.print(' ');
+	// Serial.print(SonarPID); Serial.print(' ');
+	// Serial.print(SonarPID); Serial.print(' ');
+	// Serial.print(Vel_sonar); Serial.print(" ");
+	// Serial.print(Vel_sonar); Serial.print(" ");
+	// Serial.print(Vel_sonar); Serial.print(" ");
 	Serial.println("END");
 }
 
 void Serial_alt() {
-	Serial.print("BARO"); Serial.print(' ');
-	Serial.print(throttle1); Serial.print(' ');
-	Serial.print(on_ch5); Serial.print(' ');
-	Serial.print(ch6); Serial.print(' ');
-	Serial.print(average_altitude); Serial.print(' ');
-	// Serial.print(height_baro_pid_output); Serial.print(' ');
-	Serial.print(_sonar_altitude); Serial.print(' ');
+	Serial.print("ALT "); Serial.print(' ');
+	// Serial.print(throttle); Serial.print(' ');
+	// Serial.print(ch5_count); Serial.print(' ');
+	// Serial.print(ch6); Serial.print(' ');
+	Serial.print(baro_altitude); Serial.print(' ');
+	Serial.print(baro_altitude); Serial.print(' ');
+	Serial.print(baro_altitude); Serial.print(' ');
+	Serial.print(baro_altitude); Serial.print(' ');
+	Serial.print(baro_altitude); Serial.print(' ');
+	Serial.print(baro_altitude); Serial.print(' ');
+	// Serial.print(height_sonar_p); Serial.print(' ');
+	// Serial.print(lock_sonar_altitude); Serial.print(' ');
+	// Serial.print(_sonar_altitude); Serial.print(' ');
+	// Serial.print(_sonar_mode_altitude); Serial.print(' ');
+	// Serial.print(kal_sonar); Serial.print(' ');
+	// Serial.print(_sonar_mode_altitude); Serial.print(' ');
+	// Serial.print(height_sonar_pid_output); Serial.print(' ');
 	Serial.println("END");
+}
+
+void Serial_att() {
+	Serial.print("ATT"); Serial.print(' ');
+	Serial.print(kal_pit); Serial.print(' ');
+	Serial.print(kal_rol); Serial.print(' ');
+	Serial.print(kal_yaw); Serial.print(' ');
+	Serial.println("END");
+
 }
 
 void Serial_heading() {
@@ -568,5 +798,94 @@ void Serial_heading() {
 	Serial.print(kal_yaw); Serial.print(' ');
 	Serial.print(_heading); Serial.print(' ');
 	Serial.println("END");
+
+}
+
+void Serial_throttle() {
+	Serial.print("throttle"); Serial.print(' ');
+	Serial.print(throttle); Serial.print(' ');
+	Serial.print(throttle1); Serial.print(' ');
+	Serial.print(throttle2); Serial.print(' ');
+	Serial.print(throttle3); Serial.print(' ');
+	Serial.print(throttle4); Serial.print(' ');
+	Serial.println("END");
+}
+
+void Serial_slave() {
+	Serial.print("Slave"); Serial.print(' ');
+	Serial.print(FL); Serial.print(' ');
+	Serial.print(BL); Serial.print(' ');
+	Serial.print(BR); Serial.print(' ');
+	Serial.print(FR); Serial.print(' ');
+	Serial.println("END");
+
+}
+
+void Serial_master() {
+	Serial.print("Master"); Serial.print(' ');
+	Serial.print(kal_pit); Serial.print(' ');
+	Serial.print(kal_rol); Serial.print(' ');
+	Serial.print(kal_yaw); Serial.print(' ');
+	Serial.print(GyroX); Serial.print(' ');
+	Serial.print(GyroY); Serial.print(' ');
+	Serial.print(GyroZ); Serial.print(' ');
+	Serial.println("END");
+
+}
+
+void Serial_mavlink() {
+	Serial.print("MAVLINK ");
+	Serial.print(m_x);
+	Serial.print(" ");
+	Serial.print(m_y);
+	Serial.print(" ");
+	Serial.print(m_z);
+	Serial.print(" ");
+	Serial.print(m_yaw);
+	Serial.print(" ");
+	Serial.print(m_x_change);
+	Serial.print(" ");
+	Serial.print(m_y_change);
+	Serial.print(" ");
+	Serial.print(m_z_change);
+	Serial.print(" ");
+	Serial.print(m_ck);
+	Serial.print(" ");
+	Serial.println("END");
+
+}
+
+void Serial_mavlink_test() {
+	Serial.print("MAVLINK ");
+	Serial.print(x_p);
+	Serial.print(" ");
+	Serial.print(x_d);
+	Serial.print(" ");
+	Serial.print(y_p);
+	Serial.print(" ");
+	Serial.print(y_d);
+	Serial.print(" ");
+	Serial.print(Ax);
+	Serial.print(" ");
+	Serial.print(Ay);
+	Serial.print(" ");
+	Serial.print(m_x);
+	Serial.print(" ");
+	Serial.print(m_y);
+	Serial.print(" ");
+	Serial.println("END");
+
+}
+
+void Serial_all() {
+	Serial.print("Pitch "); Serial.print(pitch); Serial.print(' '); Serial.println(kal_pit);
+	Serial.print("Roll "); Serial.print(roll); Serial.print(' '); Serial.println(kal_rol);
+	Serial.print("Yaw "); Serial.print(yaw); Serial.print(' '); Serial.println(kal_yaw);
+	Serial.print("Gyro_Pitch "); Serial.println(GyroX);
+	Serial.print("Gyro_Roll "); Serial.println(GyroY);
+	Serial.print("Gyro_Yaw "); Serial.println(GyroZ);
+	Serial.print("Accel_Pitch "); Serial.print(Ay); Serial.print(' '); Serial.println(AcceY);
+	Serial.print("Accel_Roll "); Serial.print(Ax); Serial.print(' '); Serial.println(AcceX);
+	Serial.print("Accel_Z "); Serial.print(Az); Serial.print(' '); Serial.println(AcceZ);
 
 }
